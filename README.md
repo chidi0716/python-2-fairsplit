@@ -83,24 +83,26 @@ python -m tests.test_a
 | `app.py` | 主程式：初始化、側欄、分頁、告知彈窗、自動存檔 | A |
 | `logic/storage.py` | 讀寫 JSON | A |
 | `logic/members.py` | 組員 id 與刪除組員 | A |
-| `logic/capacity.py` | 可用天數與可用工時 | C |
-| `logic/validators.py` | 可用時間與日期的驗證 | C |
+| `logic/capacity.py` | 可用天數與可用工時 | B |
+| `logic/validators.py` | 可用時間與日期的驗證 | D |
 | `logic/planner.py` | 排序與分配 | B |
-| `logic/task_ops.py` | 任務 id 與拆分 | B |
+| `logic/task_ops.py` | 任務 id、拆分與合併 AI 任務 | B |
 | `logic/fairness.py` | 負載率、公平指標與完成率 | C |
 | `ai/client.py` | 共用的 AI 呼叫與姓名遮蔽 | D |
-| `ai/tasks.py` | AI 拆任務、驗證與合併 | D |
+| `ai/tasks.py` | AI 拆任務與驗證 | D |
 | `ai/availability.py` | AI 解析可用時間 | D |
 | `ui/tasks.py` | 分頁 1「任務」 | D |
 | `ui/availability.py` | 分頁 2「可用時間」 | A |
-| `ui/assign.py` | 分頁 3 上半：分配按鈕與指派表 | B |
+| `ui/assign.py` | 分頁 3 上半：分配按鈕與指派表 | A |
 | `ui/metrics.py` | 分頁 3 下半：圖表與指標 | C |
+| `ui/state.py` | 共用狀態寫入（`update_tasks`） | A |
 | `ui/reassign.py` | 第二版：重排建議 | A |
 | `tests/test_a.py`～`test_d.py` | 各人的驗收案例 | A～D |
 | `run_tests.py` | 依序執行四個測試檔 | B |
 | `data/demo/` | Demo 與開發用的範例資料 | B |
 | `docs/ai-log.md` | AI 協作紀錄 | 各人 |
 | `docs/interviews.md` | 去識別化訪談紀錄 | C |
+| `docs/trials.md` | 試用紀錄與 7.2 判準結果 | C |
 
 組員：A 林其棣、B 董謙耀、C 鄭勤翰、D 黃政捷。
 
@@ -112,7 +114,8 @@ python -m tests.test_a
 - 發 PR 前先執行 `python run_tests.py`，全部通過才發。
 - commit 訊息用中文寫「做了什麼」，例如「新增 gini 函式與案例 1、2 測試」。
 - 只修改自己負責的檔案；要改別人的檔案，先請負責人改。
-- 函式名稱、參數與回傳型別以 `docs/spec.md` 第 16 節為準，要改先在群組提出並經全組同意。
+- 函式名稱、參數與回傳型別以 `docs/spec.md` 第 16 節為準；要改函式表、資料格式或共用 key，向 A 提出，由 A 決定並更新 spec、通知受影響的組員。
+- 程式以外的成果（訪談彙整、試用紀錄、AI 實測、AI 協作紀錄）也寫進 `docs/`，由負責人自己 commit。
 - 用 AI 程式助手時，提示詞開頭貼上 `docs/spec.md` 第 13 節的「固定前提」。
 
 ## AI 協助標示

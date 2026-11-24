@@ -128,8 +128,8 @@ flowchart LR
 | 側欄 | `text_input`、`date_input`、按鈕 | 專題名稱、起始日（預設為今天）、截止日；組員名單（新增、刪除，姓名不可空白也不可重複；刪除組員時，其負責的任務改為未指派、取消鎖定，以他為偏好負責人的任務清除偏好）；「載入 Demo 資料」按鈕（用 `data/demo/` 的專題、組員、任務覆蓋目前資料，不改 `settings`，按下後先跳確認）；「資料使用說明」按鈕 | A |
 | 分頁 1「任務」 | `text_area`、`text_input`、按鈕、`data_editor` | 專題描述；專題類型與組員程度（選填，例如「程式專題」「初學者」）；「AI 拆任務」按鈕（已有任務時先跳確認，結果取代未鎖定且未完成的任務，鎖定或已完成的任務保留，見 `merge_ai_tasks`）；任務表（名稱、工時、來源、偏好負責人；`num_rows="dynamic"` 可直接增刪列）；「拆成兩份」按鈕（4.6） | D |
 | 分頁 2「可用時間」 | 每位組員一列：`text_input`、按鈕、`number_input`、`multiselect` | 一句話描述（提示「不用寫原因」；只送 AI 解析，不存檔）；「AI 解析」按鈕；每週可用小時；不可用日期（選項為專題期間內的每一天）；可用工時；「確認」按鈕。不設原因或備註欄位 | A |
-| 分頁 3 上半「分配」 | 按鈕、`data_editor` | 「分配」按鈕（再按一次依 4.3 重分）；任務表（負責人、鎖定、狀態） | B |
-| 分頁 3 下半「公平指標」 | `bar_chart`、`metric`、`warning`、`expander` | 負載率長條圖（橫軸為組員姓名，依組員名單順序，不依負載率排序）；每位組員的負載率旁以文字顯示算式（4.4，`format_load_formula`）；最大最小比；全組完成率；超載與「未參與分配」提示；「詳細數據」收合區塊（標準差、Gini、每人可用工時、分配工時與完成率） | C |
+| 分頁 3 上半「分配」 | 按鈕、`data_editor` | 「分配」按鈕（再按一次依 4.3 重分）；任務表（負責人、鎖定、狀態） | A |
+| 分頁 3 下半「公平指標」 | `bar_chart`、`metric`、`warning`、`expander` | 負載率長條圖（橫軸為組員姓名，依組員名單順序，不依負載率排序）；每位組員的負載率旁以文字顯示算式（4.4，`format_load_formula`）；最大最小比；全組完成率；超載與「未參與分配」提示；「詳細數據」收合區塊（標準差、Gini、每人可用工時、分配工時與完成率） ||| C |
 
 AI 按鈕在 `ai_enabled` 為 `false` 時停用（`disabled=True`）。
 
@@ -275,7 +275,7 @@ C_i     = 每週可用小時 ÷ 7 × 可用天數
 | `est_hours` | 數字，0.5 ≤ 值 ≤ 20 | 該任務丟棄並在畫面提示 |
 | 整體 | 頂層為 dict 且含 `tasks` list；合法任務數 ≥ 1 | 回傳空 list，切換手動輸入 |
 
-`split_tasks_with_ai` 只回傳驗證通過、含 `title` 與 `est_hours` 的任務；之後由 `merge_ai_tasks` 補上 `id`（用 `next_task_id`：現有任務 id 數字部分的最大值加 1，依序遞增）、`est_source: "ai"`、`assignee: null`、`locked: false`、`preferred: null`、`status: "todo"` 等欄位。
+`split_tasks_with_ai` 只回傳驗證通過、含 `title` 與 `est_hours` 的任務；之後由 `merge_ai_tasks`（`logic/task_ops.py`，B；不 import `ai/`）補上 `id`（用 `next_task_id`：現有任務 id 數字部分的最大值加 1，依序遞增）、`est_source: "ai"`、`assignee: null`、`locked: false`、`preferred: null`、`status: "todo"` 等欄位。
 
 **可用時間**（`validate_availability`）
 
@@ -295,10 +295,10 @@ C_i     = 每週可用小時 ÷ 7 × 可用天數
 
 - **選定方式**：11/25（第 1 週三）前由 D 實測。準備 3 段專題描述與 5 句可用時間描述，先由組員寫出正確答案，再讓兩個候選各跑一次，比較：
   1. 回傳的 JSON 能通過 5.4 驗證的比例；
-  2. 可用時間解析與正確答案相符的句數；
+  2. 可用時間解析與正確答案相符的句數（用 5.3 的可用時間提示詞測試）；
   3. 拆出的任務與工時是否合理（4 人各自評分 1–5）；
   4. 回應時間，超過 15 秒視為失敗。
-  依序比較上述四項，取較好的一方；結果與分數記入 `ai-log.md`。
+  依序比較上述四項，取較好的一方；結果與分數由 D 寫入 `docs/ai-log.md` 並 commit。
 - **呼叫參數**：要求 JSON 格式回應（`response_format={"type": "json_object"}`），5.4 的去除程式碼區塊處理保留作備案；選用 Gemini 時把 `reasoning_effort` 設為最低。兩項都在實測時確認可用。
 - **備案**：選定的服務失效時，改 `.env` 換成另一個；兩者都不能用時，AI 按鈕預設停用，MVP 全部以手動輸入完成。
 - **開發用的 AI 程式助手**：每人自選，例如 GitHub Copilot（GitHub Education 學生方案）、Claude 或自己訂閱的其他 AI；使用紀錄一律記入 `ai-log.md`。作品內的 AI 一律用上表選定的服務，不使用個人訂閱。
@@ -349,7 +349,7 @@ FairSplit 會記錄哪些資料
 
 ### 7.2 影響力判準
 
-判準在試用前訂定；試用後填入結果，未達成也照填。
+判準在試用前訂定；試用後由 C 把結果寫入 `docs/trials.md` 並 commit，未達成也照填。
 
 | 指標 | 怎麼測 | 判準 |
 |---|---|---|
@@ -396,10 +396,10 @@ FairSplit 會記錄哪些資料
 
 | 週次 | 日期 | 目標 | 檢查點 |
 |---|---|---|---|
-| 0 | 11/20–11/22 | 繳交 spec.md；A 建立 GitHub repo；每人提交自己檔案的空殼函式（15.4） | 合併後 `streamlit run app.py` 能開出完整畫面 |
+| 0 | 11/20–11/22 | 繳交 spec.md；A 建立 GitHub repo；A 產生所有函式的空殼與 `app.py` 框架，B 放好 `data/demo/` 範例資料（15.4） | `streamlit run app.py` 能開出完整畫面 |
 | 1 | 11/23–11/29 | 每人把邏輯函式的空殼換成真正的程式；11/25 決定 AI 供應商；每人訪談 2 位 | 案例 1–4、6、7、9、16–22 通過；ai-log 每人 ≥ 1 筆 |
 | 2 | 11/30–12/06 | 每人完成自己負責的畫面；接上兩個 AI 功能；README 初稿（15.3） | 全部案例通過；組員照 README 能跑起來 |
-| 3 | 12/07–12/13 | 找 2–3 組同學試用並記錄 7.2（C）；第二版重排：B 寫 `reassign_unfinished`；A 寫 `ui/reassign.py`；C 寫 `estimate_bias`；D 寫 `explain_reassign_with_ai` | 試用紀錄；ai-log 每人 ≥ 2 筆 |
+| 3 | 12/07–12/13 | 找 2–3 組同學試用並把 7.2 結果寫入 `docs/trials.md`（C）；第二版重排：B 寫 `reassign_unfinished`；A 寫 `ui/reassign.py`；C 寫 `estimate_bias`；D 寫 `explain_reassign_with_ai` | 試用紀錄；ai-log 每人 ≥ 2 筆 |
 | 4 | 12/14–12/20 | 修正試用回饋；每人完成自己負責的簡報頁（16.2）；A 錄 Demo 影片；發表練習 | 每人能 1 分鐘講完自己的函式 |
 
 ### 9.2 進度落後時的取捨
@@ -409,7 +409,7 @@ FairSplit 會記錄哪些資料
 | 檢查點 | 未達成時的處理 |
 |---|---|
 | 11/29：案例 1–4、6、7、9、16–22 未全部通過 | A、D 暫停畫面工作，先支援 B、C 完成分配與指標 |
-| 12/06：案例 10、11（AI 解析可用時間）未通過 | 移除「AI 解析」按鈕，分頁 2 只留手動填寫；D 改支援整合與 README |
+| 12/06：案例 10、11（AI 解析可用時間）未通過 | A 移除「AI 解析」按鈕，分頁 2 只留手動填寫；D 改支援 A 的整合與 README |
 | 12/06：案例 5、8（AI 拆任務）未通過 | 現場 Demo 改用手動輸入，AI 拆任務以錄影呈現 |
 | 12/13：第二版重排未完成 | 停止第二版，剩餘時間用於試用、簡報與 Demo 影片 |
 
@@ -418,6 +418,7 @@ FairSplit 會記錄哪些資料
 - `main` 分支只放能執行的版本；每人在 `feat-<組員代號>-<功能>` 分支開發，例如 `feat-B-assign`。
 - 每完成一個函式就發 Pull Request，至少一位其他組員看過再合併。
 - commit 訊息用中文寫「做了什麼」，例如「新增 gini 函式與案例 1、2 測試」。
+- 程式以外的成果（訪談彙整、試用紀錄、AI 實測、AI 協作紀錄）也寫進 `docs/` 並由負責人自己 commit，讓每人的貢獻都在 commit 紀錄中看得見。
 - 只修改自己負責的檔案；要改別人的檔案，先請負責人改。
 - 合併前在本機執行 `python run_tests.py`，全部通過才發 PR。
 
@@ -464,7 +465,7 @@ FairSplit 會記錄哪些資料
 | AI 無法使用（金鑰、額度、格式） | 全部功能都能手動輸入；備案見 5.5 |
 | 公平指標被當成監控 | 不排名（4.4）；訪談 Q3 確認接受度 |
 | 組員不願填可用時間 | 可以只講一句話；訪談 Q2 確認 |
-| 整合時函式對不上 | 以第 16 節與 15.2 為準；第 0 週先合併空殼 |
+| 整合時函式對不上 | 以第 16 節與 15.2 為準；第 0 週由 A 一次產生全部空殼；介面變更由 A 決定（16.1） |
 
 ---
 
@@ -590,22 +591,23 @@ python-2-fairsplit/
 │  ├─ __init__.py
 │  ├─ storage.py         # 讀寫 JSON（A）
 │  ├─ members.py         # 組員 id 與刪除組員（A）
-│  ├─ capacity.py        # 可用天數與可用工時（C）
-│  ├─ validators.py      # 可用時間與日期的驗證（C）
+│  ├─ capacity.py        # 可用天數與可用工時（B）
+│  ├─ validators.py      # 可用時間與日期的驗證（D）
 │  ├─ planner.py         # 排序與分配（B）
-│  ├─ task_ops.py        # 任務 id 與拆分（B）
+│  ├─ task_ops.py        # 任務 id、拆分與合併 AI 任務（B）
 │  └─ fairness.py        # 負載率與公平指標（C）
 ├─ ai/                   # AI 呼叫，不 import streamlit
 │  ├─ __init__.py
 │  ├─ client.py          # 共用的 AI 呼叫（D）
-│  ├─ tasks.py           # AI 拆任務、驗證與合併（D）
+│  ├─ tasks.py           # AI 拆任務與驗證（D）
 │  └─ availability.py    # AI 解析可用時間（D）
 ├─ ui/                   # 畫面，只有這個資料夾與 app.py 可以 import streamlit
 │  ├─ __init__.py
 │  ├─ tasks.py           # 分頁 1「任務」（D）
 │  ├─ availability.py    # 分頁 2「可用時間」（A）
-│  ├─ assign.py          # 分頁 3 上半：分配按鈕與指派表（B）
+│  ├─ assign.py          # 分頁 3 上半：分配按鈕與指派表（A）
 │  ├─ metrics.py         # 分頁 3 下半：圖表與指標（C）
+│  ├─ state.py           # 共用狀態寫入：update_tasks（A）
 │  └─ reassign.py        # 第二版：重排建議區塊（A）
 ├─ tests/
 │  ├─ __init__.py
@@ -622,7 +624,8 @@ python-2-fairsplit/
 ├─ docs/
 │  ├─ spec.md
 │  ├─ ai-log.md          # AI 協作紀錄（每人各自記）
-│  └─ interviews.md      # 去識別化訪談紀錄（C 彙整）
+│  ├─ interviews.md      # 去識別化訪談紀錄（C 彙整）
+│  └─ trials.md          # 試用紀錄與 7.2 判準結果（C）
 ├─ .env                  # API 金鑰，不上傳
 ├─ .env.example          # AI_BASE_URL、AI_MODEL、AI_API_KEY 三個欄位的範本，可上傳
 ├─ .gitignore            # 排除 `.env` 與 `data/*.json`（只排除 data/ 第一層，data/demo/ 會上傳）
@@ -635,7 +638,7 @@ python-2-fairsplit/
 - 依賴方向只能是 `app.py` → `ui/` → `ai/` → `logic/`：`logic/` 不 import `ai/` 或 `ui/`，`ai/` 不 import `ui/`。
 - 匯入寫法統一為 `from logic.planner import assign_tasks`；每個資料夾放一個空的 `__init__.py`。
 - 測試從專案根目錄以 `python -m tests.test_b` 執行（才找得到 `logic`、`ai`），`run_tests.py` 用 `subprocess` 依序執行四個測試檔，任一個失敗就回傳非 0。
-- `ui/` 的檔案只負責畫面：從 `st.session_state` 讀資料、呼叫邏輯函式、把結果寫回 `st.session_state`。
+- `ui/` 的檔案只負責畫面與 `session_state` 的寫入（寫入 `tasks` 一律透過 `ui/state.py` 的 `update_tasks`）：從 `st.session_state` 讀資料、呼叫邏輯函式、把結果寫回 `st.session_state`。
 - `app.py` 只負責初始化與排版，呼叫各 `render_` 函式，不寫計算邏輯；先呼叫 `render_assign_section` 再呼叫 `render_metrics_section`（後者讀取前者算好的 `capacities`）。
 
 ### 15.2 共用資料（`st.session_state`）
@@ -644,16 +647,18 @@ python-2-fairsplit/
 
 | key | 型別 | 寫入者 | 讀取者 |
 |---|---|---|---|
-| `project` | dict，格式同 `project.json` | `app.py` 側欄（A）；`description`、`project_type`、`member_level` 由 `ui/tasks` 寫入（D） | 全部 |
-| `members` | `list[dict]`，格式同 `members.json` 的 `members` | `app.py` 側欄新增刪除（A）、`ui/availability`（A） | B、C、D |
-| `tasks` | `list[dict]`，格式同 `tasks.json` 的 `tasks` | `ui/tasks`（D）；`ui/assign` 只改 `assignee`、`locked`、`status`（B）；側欄刪除組員時以 `remove_member` 清除其指派與偏好（A） | B、C |
-| `tasks_version` | int | 任何寫入 `tasks` 的地方，寫入後加 1（A、B、D） | B、D（`data_editor` 的 `key` 加上此數字） |
-| `capacities` | dict：組員 id → 可用工時 | `ui/assign` 每次執行時依 `members` 與 `project` 重算（B） | C |
+| `project` | dict，格式同 `project.json` | `app.py` 側欄（A）；`description`、`project_type`、`member_level` 由 `ui/tasks` 寫入（D） | A、C、D |
+| `members` | `list[dict]`，格式同 `members.json` 的 `members` | `app.py` 側欄新增刪除（A）、`ui/availability`（A） | A、C、D |
+| `tasks` | `list[dict]`，格式同 `tasks.json` 的 `tasks` | 一律透過 `update_tasks`（A）：`ui/tasks`（D）；`ui/assign` 只改 `assignee`、`locked`、`status`（A）；側欄刪除組員時以 `remove_member` 清除其指派與偏好（A） | A、C、D |
+| `tasks_version` | int | 只由 `update_tasks` 在寫入 `tasks` 後加 1（A） | A、D（`data_editor` 的 `key` 加上此數字） |
+| `capacities` | dict：組員 id → 可用工時 | `ui/assign` 每次執行時依 `members` 與 `project` 重算（A） | C（`ui/metrics`） |
 | `settings` | dict，格式同 `settings.json` | `app.py` 告知彈窗（A） | A、D（判斷 AI 按鈕是否停用） |
+
+B 只寫 `logic/` 函式，不直接讀寫 `st.session_state`。
 
 自動存檔：`app.py` 在每次執行的最後呼叫 `save_all`，把 `project`、`members`、`tasks`、`settings` 寫回 `data/`。重新整理頁面後，`init_state` 從 `data/` 讀回資料。
 
-第二版的 `ui/reassign`（A）在使用者按「採用」時改寫 `tasks` 的 `assignee`。
+第二版的 `ui/reassign`（A）在使用者按「採用」時透過 `update_tasks` 改寫 `tasks` 的 `assignee`。
 
 ### 15.3 README 內容（A）
 
@@ -666,23 +671,23 @@ python-2-fairsplit/
 
 ### 15.4 平行開發方式
 
-1. **11/21–11/22，建空殼**：資料夾與空檔案已依 15.1 建好；每人在自己負責的檔案裡，把第 16 節的函式全部寫成空殼：名稱、參數照表，內容回傳固定的範例值（例如 `gini` 先 `return 0.0`）。A 同時完成 `app.py` 的側欄與分頁框架，B 放好 `data/demo/` 範例資料。四人合併後，`streamlit run app.py` 能開出完整畫面，數字為範例值。
+1. **11/21–11/22，建空殼**：A 依 16.1 一次產生所有函式的空殼（名稱、參數、回傳型別照表，內容回傳固定範例值，例如 `gini` 先 `return 0.0`），並完成 `app.py` 側欄與分頁框架；B 放好 `data/demo/` 範例資料；A 確認 `streamlit run app.py` 能開出完整畫面，數字為範例值。
 2. **11/23 起，各自替換**：每人把自己的空殼換成真正的程式，用 `tests/test_<代號>.py` 單獨測試。畫面部分用 `data/demo/` 的資料開發。
 
 **相依關係**：
 
 | 呼叫者 | 用到的函式 | 提供者 |
 |---|---|---|
-| `ui/availability`（A） | `parse_availability_with_ai`、`calc_capacity` | D、C |
-| `ai/availability`（D） | `validate_availability` | C |
-| `ui/assign`（B） | `calc_capacity` | C |
-| `ui/tasks`、`ai/tasks`（D） | `next_task_id`、`split_task` | B |
-| `ui/metrics`（C） | `capacities`（由 `ui/assign` 算好） | B |
+| `ui/availability`（A） | `calc_capacity`、`parse_availability_with_ai` | B、D |
+| `ui/assign`（A） | `calc_capacity`、`assign_tasks` | B |
+| `ui/tasks`、`ai/tasks`（D） | `next_task_id`、`split_task`、`merge_ai_tasks` | B |
+| `ui/tasks`（D） | `update_tasks` | A |
+| `ui/metrics`（C） | `capacities`（由 `ui/assign` 算好） | A |
 
 ### 15.5 Streamlit 實作注意事項
 
 - **程式改寫輸入元件的值**：例如把 AI 解析出的每週小時填進 `number_input`。要在按鈕的 `on_click` 回呼函式裡改寫該元件 `key` 對應的 `session_state`；元件畫出後才改會出錯。
-- **可編輯表格**：`st.data_editor` 以 `session_state` 的資料為輸入，`key` 分頁 1 寫成 `"tasks_editor_" + str(tasks_version)`、分頁 3 寫成 `"assign_editor_" + str(tasks_version)`（前綴不同，避免兩個表格 key 重複）；回傳值與原資料不同時才寫回並把 `tasks_version` 加 1。分頁 1 與分頁 3 都編輯 `tasks`，換 key 才能讓另一個表格重新讀取，否則修改會套到錯的列。
+- **可編輯表格**：`st.data_editor` 以 `session_state` 的資料為輸入，`key` 分頁 1 寫成 `"tasks_editor_" + str(tasks_version)`、分頁 3 寫成 `"assign_editor_" + str(tasks_version)`（前綴不同，避免兩個表格 key 重複）；回傳值與原資料不同時才呼叫 `update_tasks` 寫回（由它把 `tasks_version` 加 1）。分頁 1 與分頁 3 都編輯 `tasks`，換 key 才能讓另一個表格重新讀取，否則修改會套到錯的列。
 - **表格欄位設定**：負責人與偏好負責人用 `st.column_config.SelectboxColumn`，選項為組員姓名；由 `ui/` 的檔案負責姓名與組員 id 的轉換：畫面顯示姓名，寫回 `tasks` 時存 id；狀態顯示「未開始／進行中／已完成」；來源顯示「AI 估計／手動」；工時用 `NumberColumn`（0.5–20，間隔 0.5）；新增的列由程式用 `next_task_id` 補上 id 與預設欄位。
 - **日期格式**：`date_input` 與 `multiselect` 取得的日期，在 `ui/` 的檔案用 `.isoformat()` 轉成 `"YYYY-MM-DD"` 字串後才傳給邏輯函式；邏輯函式只接受字串。
 - **渲染順序**：`app.py` 先呼叫 `render_assign_section`，再呼叫 `render_metrics_section`，因為後者讀取前者算好的 `capacities`。
@@ -701,20 +706,22 @@ python-2-fairsplit/
 | `save_json(path, data)` | logic/storage | 路徑 str、dict | 無 | A | MVP |
 | `next_member_id(members)` | logic/members | `list[dict]` | 下一個組員 id str，例如 `"m3"`（現有 id 數字部分的最大值加 1） | A | MVP |
 | `remove_member(members, tasks, member_id)` | logic/members | 組員 `list[dict]`、任務 `list[dict]`、組員 id str | (新組員 list, 新任務 list)：移除該組員；其負責的任務改未指派並取消鎖定，以他為 `preferred` 的任務清成 null（案例 14） | A | MVP |
-| `validate_availability(data, start, deadline)` | logic/validators | AI 回傳的 dict、日期 str ×2 | (清理後的 dict, 提示訊息 list) | C | MVP |
+| `validate_availability(data, start, deadline)` | logic/validators | AI 回傳的 dict、日期 str ×2 | (清理後的 dict, 提示訊息 list) | D | MVP |
 | `init_state()` | app | 無 | 無（`session_state` 沒有該 key 時才從 `data/` 載入，避免蓋掉畫面上的修改） | A | MVP |
 | `show_notice()` | app | 無 | 無（顯示 5.6 的彈窗；按下選項時立即寫入 `data/settings.json`） | A | MVP |
 | `render_sidebar()` | app | 無 | 無（側欄：專題資訊、組員名單、載入 Demo） | A | MVP |
 | `save_all()` | app | 無 | 無（把 `project`、`members`、`tasks`、`settings` 寫回 `data/`） | A | MVP |
 | `render_availability_tab()` | ui/availability | 無 | 無（分頁 2） | A | MVP |
-| `count_available_days(start, deadline, unavailable)` | logic/capacity | 日期 str ×2、日期 list | int | C | MVP |
-| `calc_capacity(member, start, deadline)` | logic/capacity | 組員 dict、日期 str ×2 | float | C | MVP |
+| `update_tasks(new_tasks)` | ui/state | 任務 `list[dict]` | 無（寫入 `st.session_state["tasks"]`，並把 `tasks_version` 加 1） | A | MVP |
+| `count_available_days(start, deadline, unavailable)` | logic/capacity | 日期 str ×2、日期 list | int | B | MVP |
+| `calc_capacity(member, start, deadline)` | logic/capacity | 組員 dict、日期 str ×2 | float | B | MVP |
 | `sort_tasks(tasks)` | logic/planner | `list[dict]` | 依工時大到小、再依 id 數字部分由小到大排序的新 list | B | MVP |
 | `pick_member(task, loads, capacities)` | logic/planner | 任務 dict、目前工時 dict、可用工時 dict | 組員 id str（4.3 第 4、5 步） | B | MVP |
 | `assign_tasks(tasks, capacities)` | logic/planner | `list[dict]`、dict（組員 id → 可用工時） | dict（任務 id → 組員 id），含鎖定與已完成任務 | B | MVP |
 | `next_task_id(tasks)` | logic/task_ops | `list[dict]` | 下一個任務 id str，例如 `"T3"` | B | MVP |
 | `split_task(tasks, task_id)` | logic/task_ops | `list[dict]`、任務 id str | 依 4.6 拆分後的新 `list[dict]` | B | MVP |
-| `render_assign_section()` | ui/assign | 無 | 無（分頁 3 上半） | B | MVP |
+| `merge_ai_tasks(existing, ai_tasks)` | logic/task_ops | 現有任務 `list[dict]`、AI 合法任務 `list[dict]` | 新 `list[dict]`：保留鎖定或已完成的任務，刪除其他現有任務，AI 任務依 5.4 補欄位；id 依完整的現有任務計算（案例 15） | B | MVP |
+| `render_assign_section()` | ui/assign | 無 | 無（分頁 3 上半） | A | MVP |
 | `topo_order(tasks)` | logic/planner | 含 `depends_on` 的 `list[dict]` | (順序 list, 錯誤訊息 str 或 None) | B | 第二版 |
 | `calc_load_rates(tasks, capacities)` | logic/fairness | `list[dict]`、可用工時 dict | dict（組員 id → 負載率，依 4.1） | C | MVP |
 | `format_load_formula(w, c)` | logic/fairness | 分配工時 float、可用工時 float | 算式 str，格式見 4.4；`c` 為 0 時回傳「無可用工時」 | C | MVP |
@@ -731,7 +738,6 @@ python-2-fairsplit/
 | `build_task_prompt(description, deadline, member_count, weeks, project_type, member_level)` | ai/tasks | str、日期 str、int、int、str、str | 提示詞 str | D | MVP |
 | `validate_task(task)` | ai/tasks | 單一任務 dict | (是否合法 bool, 訊息 str) | D | MVP |
 | `split_tasks_with_ai(description, deadline, member_count, weeks, project_type, member_level, names)` | ai/tasks | 同 `build_task_prompt`，加上全部組員姓名 list | `(list[dict], list[str])`：(只含 `title`、`est_hours` 的合法任務, 提示訊息)；失敗回傳 `([], [訊息])`，訊息為「AI 暫時無法使用，請手動新增任務」 | D | MVP |
-| `merge_ai_tasks(existing, ai_tasks)` | ai/tasks | 現有任務 `list[dict]`、AI 合法任務 `list[dict]` | 新 `list[dict]`：保留鎖定或已完成的任務，刪除其他現有任務，AI 任務依 5.4 補欄位；id 依完整的現有任務計算（案例 15） | D | MVP |
 | `build_availability_prompt(text, start, deadline)` | ai/availability | 可用時間描述 str、日期 str ×2 | 提示詞 str | D | MVP |
 | `parse_availability_with_ai(text, names, start, deadline)` | ai/availability | 描述 str、全部組員姓名 list、日期 str ×2 | `(dict 或 None, list[str])`：(`{"weekly_hours": float 或 None, "unavailable_dates": list}`, 提示訊息)；失敗時 dict 為 `None`，訊息為「請手動填寫每週可用小時」 | D | MVP |
 | `render_tasks_tab()` | ui/tasks | 無 | 無（分頁 1） | D | MVP |
@@ -740,16 +746,16 @@ python-2-fairsplit/
 
 `parse_availability_with_ai` 回傳前呼叫 `validate_availability`。
 
-函式名稱、參數順序與回傳型別以本表為準；要改先在群組提出、全組同意、更新本表。
+函式名稱、參數順序與回傳型別以本表為準；要改函式表、第 14 節資料格式或 15.2 共用 key，向 A 提出，由 A 決定並更新 spec、通知受影響的組員。
 
 ### 16.2 每人負責範圍
 
 | 組員 | 程式 | 驗收案例 | 其他工作 | 簡報頁 |
 |---|---|---|---|---|
-| A 林其棣 | 主程式與側欄、資料讀寫、組員新增與刪除函式、告知彈窗、自動存檔、分頁 2 | 6、12、13、14 | README、Demo 影片錄製、訪談 2 位 | 封面、問題與需求 |
-| B 董謙耀 | 排序與分配（含偏好規則）、任務 id 與拆分、分頁 3 上半 | 1–4（分配部分）、9、18、19、20、21 | `run_tests.py`、`data/demo/` 範例資料、訪談 2 位 | 解決方案（流程、貪心法、畫面） |
-| C 鄭勤翰 | 可用工時、可用時間驗證、公平指標、負載率算式與完成率、分頁 3 下半 | 1–4（指標部分）、7、10（驗證部分）、17、22 | 訪談彙整、試用與 7.2 判準紀錄、訪談 2 位 | 與現有做法比較、影響力 |
-| D 黃政捷 | AI 呼叫、AI 拆任務與合併、AI 解析可用時間、分頁 1 | 5、8、10（解析部分）、11、15、16 | AI 供應商實測（11/25）、訪談 2 位 | AI 應用與人機協作 |
+| A 林其棣 | 主程式與側欄、資料讀寫、組員新增與刪除函式、共用狀態寫入（`update_tasks`）、告知彈窗、自動存檔、分頁 2、分頁 3 上半 | 6、12、13、14 | 整合：空殼合併後確認 `streamlit run app.py` 能開；每週合併後跑 `python run_tests.py` 與 `streamlit run app.py`，失敗時通知負責人修正；全部函式空殼（15.4）、README、Demo 影片錄製、訪談 2 位 | 封面、問題與需求、解決方案（畫面） |
+| B 董謙耀 | 可用工時、排序與分配（含偏好規則）、任務 id 與拆分、合併 AI 任務 | 1–4（分配部分）、7、9、15、18、19、20、21 | `run_tests.py`、`data/demo/` 範例資料、訪談 2 位 | 解決方案（流程、貪心法） |
+| C 鄭勤翰 | 公平指標、負載率算式與完成率、分頁 3 下半 | 1–4（指標部分）、17、22 | 訪談彙整（寫入 `docs/interviews.md`）、試用與 7.2 判準紀錄（寫入 `docs/trials.md`）、訪談 2 位 | 與現有做法比較、影響力 |
+| D 黃政捷 | AI 呼叫、AI 拆任務、AI 解析與驗證可用時間、分頁 1 | 5、8、10、11、16 | AI 供應商實測（11/25，結果寫入 `docs/ai-log.md`）；A 的備援：A 兩天內未回應時，代行整合與介面判斷，事後告知 A；訪談 2 位 | AI 應用與人機協作 |
 
 ---
 
