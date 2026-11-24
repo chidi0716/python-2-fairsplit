@@ -1,5 +1,6 @@
 .env
 data/*.json
+data/*.bak
 __pycache__/
 *.pyc
 .venv/
