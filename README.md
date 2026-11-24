@@ -100,7 +100,8 @@ python -m tests.test_a
 | `tests/test_a.py`～`test_d.py` | 各人的驗收案例 | A～D |
 | `run_tests.py` | 依序執行四個測試檔 | B |
 | `data/demo/` | Demo 與開發用的範例資料 | B |
-| `docs/ai-log.md` | AI 協作紀錄 | 各人 |
+| `docs/ai-log.md` | AI 協作紀錄目錄 | A |
+| `docs/ai-log/A.md`～`D.md` | 各人的 AI 協作紀錄 | 各人 |
 | `docs/interviews.md` | 去識別化訪談紀錄 | C |
 | `docs/trials.md` | 試用紀錄與 7.2 判準結果 | C |
 
@@ -122,4 +123,4 @@ python -m tests.test_a
 
 > 程式完成後依實際情況補上哪些部分有 AI 協助。
 
-每次使用 AI 的紀錄見 [`docs/ai-log.md`](docs/ai-log.md)。
+每次使用 AI 的紀錄見 [`docs/ai-log.md`](docs/ai-log.md)，每人一個檔案，放在 `docs/ai-log/`。
