@@ -573,7 +573,7 @@ FairSplit 會記錄哪些資料
 | `project_type`、`member_level` | str | 使用者輸入，可為空字串 | MVP |
 | 日期 | str | `YYYY-MM-DD` | MVP |
 
-檔案不存在或內容損壞時，`load_json` 回傳預設空結構（如 `{"tasks": []}`）。
+檔案不存在或內容損壞時，`load_json` 回傳預設空結構（如 `{"tasks": []}`）；內容損壞時先把原檔改名為 `.bak`（例如 `tasks.json.bak`）保留，避免被自動存檔覆蓋。
 
 `data/demo/` 放 `project.json`、`members.json`、`tasks.json` 三個格式相同的範例檔（不含 `settings.json`）。
 
@@ -631,7 +631,7 @@ python-2-fairsplit/
 │  └─ trials.md          # 試用紀錄與 7.2 判準結果（C）
 ├─ .env                  # API 金鑰，不上傳
 ├─ .env.example          # AI_BASE_URL、AI_MODEL、AI_API_KEY 三個欄位的範本，可上傳
-├─ .gitignore            # 排除 `.env` 與 `data/*.json`（只排除 data/ 第一層，data/demo/ 會上傳）
+├─ .gitignore            # 排除 `.env`、`data/*.json` 與 `data/*.bak`（只排除 data/ 第一層，data/demo/ 會上傳）
 ├─ requirements.txt
 └─ README.md             # A
 ```
@@ -705,7 +705,7 @@ B 只寫 `logic/` 函式，不直接讀寫 `st.session_state`。
 
 | 函式 | 檔案 | 輸入 | 輸出 | 負責 | 版本 |
 |---|---|---|---|---|---|
-| `load_json(path, default)` | logic/storage | 路徑 str、檔案不存在或損壞時的預設值 dict | dict | A | MVP |
+| `load_json(path, default)` | logic/storage | 路徑 str、檔案不存在或損壞時的預設值 dict | dict；損壞的檔案先改名為 `.bak` 保留 | A | MVP |
 | `save_json(path, data)` | logic/storage | 路徑 str、dict | 無 | A | MVP |
 | `next_member_id(members)` | logic/members | `list[dict]` | 下一個組員 id str，例如 `"m3"`（現有 id 數字部分的最大值加 1） | A | MVP |
 | `remove_member(members, tasks, member_id)` | logic/members | 組員 `list[dict]`、任務 `list[dict]`、組員 id str | (新組員 list, 新任務 list)：移除該組員；其負責的任務改未指派並取消鎖定，以他為 `preferred` 的任務清成 null（案例 14） | A | MVP |
