@@ -4,6 +4,7 @@
 import sys
 from pathlib import Path
 
+from logic.members import next_member_id, remove_member
 from logic.storage import load_json, save_json
 
 # 測試用的暫存資料夾，測完會刪掉
@@ -69,6 +70,35 @@ def storage_edge_cases():
     check("資料夾不存在時自動建立", load_json(str(nested), {}) == {"notice_accepted": True})
 
 
+def case_14():
+    """案例 14：刪除組員 m2 後，清除他的指派、鎖定與偏好（畫面上的 capacities 以手動檢查）。"""
+    members = [
+        {"id": "m1", "name": "組員甲", "weekly_hours": 6, "unavailable_dates": []},
+        {"id": "m2", "name": "組員乙", "weekly_hours": 8, "unavailable_dates": []},
+    ]
+    tasks = [
+        {"id": "T1", "title": "整理需求", "est_hours": 3, "assignee": "m2", "locked": True, "preferred": None},
+        {"id": "T2", "title": "製作簡報", "est_hours": 2, "assignee": "m1", "locked": True, "preferred": "m2"},
+    ]
+    new_members, new_tasks = remove_member(members, tasks, "m2")
+
+    check("案例 14 刪除組員：名單不再有 m2", [m.get("id") for m in new_members] == ["m1"])
+    t1, t2 = new_tasks[0], new_tasks[1]
+    check("案例 14 刪除組員：T1 改成未指派並取消鎖定", t1["assignee"] is None and t1["locked"] is False)
+    check("案例 14 刪除組員：T2 的偏好清成 null，其他欄位不變",
+          t2["preferred"] is None and t2["assignee"] == "m1" and t2["locked"] is True)
+    check("案例 14 刪除組員：不改動傳入的原資料",
+          len(members) == 2 and tasks[0]["assignee"] == "m2" and tasks[0]["locked"] is True
+          and tasks[1]["preferred"] == "m2")
+
+
+def member_id_cases():
+    """next_member_id：取現有 id 數字部分的最大值加 1。"""
+    check("沒有組員時 id 為 m1", next_member_id([]) == "m1")
+    check("刪過組員後 id 不重複", next_member_id([{"id": "m1"}, {"id": "m3"}]) == "m4")
+    check("數字比大小而不是比字串", next_member_id([{"id": "m9"}, {"id": "m10"}]) == "m11")
+
+
 def remove_tmp_dir():
     """刪掉測試用的暫存資料夾。"""
     if not TMP_DIR.exists():
@@ -93,7 +123,8 @@ def main():
     try:
         case_6()
         storage_edge_cases()
-        # 待實作：案例 14 刪除組員（階段 2 補上）
+        case_14()
+        member_id_cases()
     finally:
         remove_tmp_dir()
     if not all(results):
