@@ -1,0 +1,52 @@
+{
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "整理需求與使用情境",
+      "est_hours": 3,
+      "est_source": "manual",
+      "assignee": "m1",
+      "locked": false,
+      "preferred": null,
+      "status": "done",
+      "actual_hours": null,
+      "depends_on": []
+    },
+    {
+      "id": "T2",
+      "title": "設計頁面流程與線框稿",
+      "est_hours": 4,
+      "est_source": "manual",
+      "assignee": null,
+      "locked": false,
+      "preferred": "m2",
+      "status": "todo",
+      "actual_hours": null,
+      "depends_on": []
+    },
+    {
+      "id": "T3",
+      "title": "製作物品刊登與搜尋功能",
+      "est_hours": 6,
+      "est_source": "manual",
+      "assignee": null,
+      "locked": false,
+      "preferred": null,
+      "status": "todo",
+      "actual_hours": null,
+      "depends_on": []
+    },
+    {
+      "id": "T4",
+      "title": "測試主要操作流程",
+      "est_hours": 2,
+      "est_source": "manual",
+      "assignee": null,
+      "locked": false,
+      "preferred": null,
+      "status": "todo",
+      "actual_hours": null,
+      "depends_on": []
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "members": [
+    {
+      "id": "m1",
+      "name": "組員甲",
+      "weekly_hours": 8,
+      "unavailable_dates": [
+        "2026-12-01"
+      ]
+    },
+    {
+      "id": "m2",
+      "name": "組員乙",
+      "weekly_hours": 6,
+      "unavailable_dates": []
+    }
+  ]
+}
