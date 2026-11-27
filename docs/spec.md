@@ -224,7 +224,7 @@ C_i     = 每週可用小時 ÷ 7 × 可用天數
 - AI **不決定**誰做哪個任務，也**不計算**任何指標；所有數字由 Python 算出並可手算驗證。
 - AI 只能回傳 JSON；程式用 `try/except` 解析，格式錯誤、逾時、超過額度或沒有金鑰時一律退回手動輸入。
 - AI 的輸出都經使用者檢查：任務可直接編輯，改過工時後 `est_source` 變成 `"manual"`；可用時間按「確認」才寫入。
-- 送給 AI 的內容只有：專題描述、截止日、組員人數、可用時間描述句。所有送出的文字由 `call_ai` 先經 `mask_names` 把全部組員姓名換成「組員」，姓名不會送出。
+- 送給 AI 的內容只有：專題描述、截止日、組員人數、專題類型與組員程度（選填，有填才送）、可用時間描述句。所有送出的文字由 `call_ai` 先經 `mask_names` 把全部組員姓名換成「組員」，姓名不會送出。
 - API 金鑰放 `.env`，`.env` 列入 `.gitignore`，不寫進程式、不上傳、不貼給別人。
 
 ### 5.3 提示詞（MVP）
@@ -310,8 +310,8 @@ C_i     = 每週可用小時 ÷ 7 × 可用天數
 ```text
 FairSplit 會記錄哪些資料
 ・專題描述、任務、組員名稱與可用時間，每次修改後自動存在這台電腦的 data/ 資料夾，不會上傳。
-・使用 AI 功能時，會把專題描述、截止日、組員人數與可用時間描述句送到 ＿＿＿（5.5 選定的服務）；
-  組員姓名不會送出。
+・使用 AI 功能時，會把專題描述、截止日、組員人數、專題類型與組員程度（有填才送）
+  與可用時間描述句送到 ＿＿＿（5.5 選定的服務）；組員姓名不會送出。
 ・（選用 Gemini 免費額度時加上）Google 可能使用送出的內容改進其產品，請勿輸入個人資料。
 ・可用時間只用於計算工時，不顯示原因，也不做個人排名。
 ・刪除 data/ 資料夾即可清除全部資料。
@@ -659,6 +659,8 @@ python-2-fairsplit/
 
 B 只寫 `logic/` 函式，不直接讀寫 `st.session_state`。
 
+各 `ui/` 檔案只在自己檔案內使用的暫存 key（輸入元件的 `key`、確認彈窗的開關等）不算共用 key，不必列入上表，但一律以檔名開頭，例如 `tasks_description`、`tasks_confirm_ai`、`availability_hours_m1`，不跨檔案讀寫。
+
 自動存檔：`app.py` 在每次執行的最後呼叫 `save_all`，把 `project`、`members`、`tasks`、`settings` 寫回 `data/`。重新整理頁面後，`init_state` 從 `data/` 讀回資料。
 
 第二版的 `ui/reassign`（A）在使用者按「採用」時透過 `update_tasks` 改寫 `tasks` 的 `assignee`。
@@ -691,7 +693,7 @@ B 只寫 `logic/` 函式，不直接讀寫 `st.session_state`。
 
 - **程式改寫輸入元件的值**：例如把 AI 解析出的每週小時填進 `number_input`。要在按鈕的 `on_click` 回呼函式裡改寫該元件 `key` 對應的 `session_state`；元件畫出後才改會出錯。
 - **可編輯表格**：`st.data_editor` 以 `session_state` 的資料為輸入，`key` 分頁 1 寫成 `"tasks_editor_" + str(tasks_version)`、分頁 3 寫成 `"assign_editor_" + str(tasks_version)`（前綴不同，避免兩個表格 key 重複）；回傳值與原資料不同時才呼叫 `update_tasks` 寫回（由它把 `tasks_version` 加 1）。分頁 1 與分頁 3 都編輯 `tasks`，換 key 才能讓另一個表格重新讀取，否則修改會套到錯的列。
-- **表格欄位設定**：負責人與偏好負責人用 `st.column_config.SelectboxColumn`，選項為組員姓名；由 `ui/` 的檔案負責姓名與組員 id 的轉換：畫面顯示姓名，寫回 `tasks` 時存 id；狀態顯示「未開始／進行中／已完成」；來源顯示「AI 估計／手動」；工時用 `NumberColumn`（0.5–20，間隔 0.5）；新增的列由程式用 `next_task_id` 補上 id 與預設欄位。
+- **表格欄位設定**：負責人與偏好負責人用 `st.column_config.SelectboxColumn`，選項為組員姓名；由 `ui/` 的檔案負責姓名與組員 id 的轉換：畫面顯示姓名，寫回 `tasks` 時存 id；狀態顯示「未開始／進行中／已完成」；來源顯示「AI 估計／手動」，此欄唯讀，工時改得和原本不同時由程式把 `est_source` 改成 `"manual"`；工時用 `NumberColumn`（0.5–20，間隔 0.5）；新增的列由程式用 `next_task_id` 補上 id 與預設欄位。
 - **日期格式**：`date_input` 與 `multiselect` 取得的日期，在 `ui/` 的檔案用 `.isoformat()` 轉成 `"YYYY-MM-DD"` 字串後才傳給邏輯函式；邏輯函式只接受字串。
 - **渲染順序**：`app.py` 先呼叫 `render_assign_section`，再呼叫 `render_metrics_section`，因為後者讀取前者算好的 `capacities`。
 
@@ -742,7 +744,7 @@ B 只寫 `logic/` 函式，不直接讀寫 `st.session_state`。
 | `validate_task(task)` | ai/tasks | 單一任務 dict | (是否合法 bool, 訊息 str) | D | MVP |
 | `split_tasks_with_ai(description, deadline, member_count, weeks, project_type, member_level, names)` | ai/tasks | 同 `build_task_prompt`，加上全部組員姓名 list | `(list[dict], list[str])`：(只含 `title`、`est_hours` 的合法任務, 提示訊息)；失敗回傳 `([], [訊息])`，訊息為「AI 暫時無法使用，請手動新增任務」 | D | MVP |
 | `build_availability_prompt(text, start, deadline)` | ai/availability | 可用時間描述 str、日期 str ×2 | 提示詞 str | D | MVP |
-| `parse_availability_with_ai(text, names, start, deadline)` | ai/availability | 描述 str、全部組員姓名 list、日期 str ×2 | `(dict 或 None, list[str])`：(`{"weekly_hours": float 或 None, "unavailable_dates": list}`, 提示訊息)；失敗時 dict 為 `None`，訊息為「請手動填寫每週可用小時」 | D | MVP |
+| `parse_availability_with_ai(text, names, start, deadline)` | ai/availability | 描述 str、全部組員姓名 list、日期 str ×2 | `(dict 或 None, list[str])`：(`{"weekly_hours": float 或 None, "unavailable_dates": list}`, 提示訊息)；AI 回應無法使用（非 JSON、連線失敗等）時 dict 為 `None`；能解析但每週小時無法判斷時，回傳 `weekly_hours` 為 `None` 的 dict 並保留合法日期；這兩種情況的訊息都含「請手動填寫每週可用小時」 | D | MVP |
 | `render_tasks_tab()` | ui/tasks | 無 | 無（分頁 1） | D | MVP |
 | `explain_reassign_with_ai(before, after, metrics)` | ai/tasks | 重排前後 dict、指標 dict | 白話說明 str | D | 第二版 |
 | `render_reassign_section()` | ui/reassign | 無 | 無（分頁 3 的重排建議區塊：建議重排、前後指標並排、採用） | A | 第二版 |
@@ -778,7 +780,7 @@ B 只寫 `logic/` 函式，不直接讀寫 `st.session_state`。
 | 8 AI 任務格式部分錯誤 | AI 回傳 3 個任務，其中 1 個 `est_hours` 為 -2 | 保留 2 個合法任務，提示「1 個任務格式錯誤已略過」 |
 | 9 鎖定任務 | m1、m2 可用工時皆 10；T1（5h）指定給 m2 並鎖定；另有 T2（4h）、T3（2h） | T1 仍屬 m2；T2 → m1（0.4 < 0.9）；T3 → m1（0.6 < 0.7）。m1 6h（0.6）、m2 5h（0.5） |
 | 10 AI 解析可用時間 | 期間 2026-11-23 至 2026-12-18；AI 回傳 `{"weekly_hours": 6, "unavailable_dates": ["2026-12-01", "2027-01-05"]}` | 每週 6 小時；保留 2026-12-01；2027-01-05 在期間外被丟棄並提示 |
-| 11 AI 解析失敗 | AI 回傳非 JSON，或 `weekly_hours` 為 null | 欄位留空，顯示「請手動填寫每週可用小時」 |
+| 11 AI 解析失敗 | AI 回傳非 JSON，或 `weekly_hours` 為 null | 欄位留空，顯示「請手動填寫每週可用小時」；`weekly_hours` 為 null 時，回應中合法的不可用日期照樣保留 |
 | 12 資料使用告知 | 刪除 `settings.json` 後啟動 | 跳出告知彈窗；按「同意並開始」後重開不再出現；按「不使用 AI」後 AI 按鈕全部停用；從側欄重開彈窗改選「同意並開始」後 AI 按鈕恢復 |
 | 13 自動存檔 | 新增一個任務後重新整理頁面 | 任務仍在；`data/tasks.json` 內容與畫面一致 |
 | 14 刪除組員 | m2 負責 T1 且已鎖定；T2 的偏好負責人是 m2；在側欄刪除 m2 | T1 的 `assignee` 變成 null、`locked` 變成 false；T2 的 `preferred` 變成 null；`capacities` 不再有 m2 |

@@ -64,7 +64,7 @@ streamlit run app.py
 
 ## 測試
 
-在專案根目錄執行全部測試（`run_tests.py` 由 B 完成後可用）：
+在專案根目錄執行全部測試：
 
 ```bash
 python run_tests.py
