@@ -60,6 +60,6 @@ def parse_availability_with_ai(text, names, start, deadline):
     if cleaned_data["weekly_hours"] is None:
         if fallback_message not in messages:
             messages.append(fallback_message)
-        return None, messages
+        return cleaned_data, messages
 
     return cleaned_data, messages

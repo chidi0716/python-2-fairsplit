@@ -22,6 +22,10 @@ def render_tasks_tab():
     tasks = st.session_state.get("tasks", [])
     settings = st.session_state.get("settings", {})
 
+    pending_messages = st.session_state.pop("tasks_ai_messages", [])
+    for message in pending_messages:
+        st.warning(message)
+
     st.subheader("任務")
     description = st.text_area(
         "專題描述",
@@ -53,9 +57,9 @@ def render_tasks_tab():
         for member in members
     }
 
-    def generate_tasks():
+    def generate_tasks(persist_messages=False):
         """呼叫 AI 並把合法任務合併到目前任務。
-        輸入：使用 render_tasks_tab 讀取的專題資料、組員與任務
+        輸入：是否先保存提示訊息再重跑 bool
         輸出：無（透過 update_tasks 寫入任務）
         """
         current_project = st.session_state.get("project", {})
@@ -80,26 +84,38 @@ def render_tasks_tab():
             current_project.get("member_level", ""),
             current_names,
         )
-        for message in messages:
-            st.warning(message)
+        if not persist_messages:
+            for message in messages:
+                st.warning(message)
         if not ai_tasks:
+            if persist_messages:
+                st.session_state["tasks_ai_messages"] = messages
+                st.rerun()
             return
 
         merged_tasks = merge_ai_tasks(current_tasks, ai_tasks)
         if merged_tasks == current_tasks:
-            st.warning("AI 任務未能加入目前清單，請稍後再試或手動新增")
+            warning_message = "AI 任務未能加入目前清單，請稍後再試或手動新增"
+            if persist_messages:
+                messages.append(warning_message)
+                st.session_state["tasks_ai_messages"] = messages
+                st.rerun()
+                return
+            st.warning(warning_message)
             return
         update_tasks(merged_tasks)
-        st.rerun()
+        if persist_messages:
+            st.session_state["tasks_ai_messages"] = messages
+            st.rerun()
 
     ai_enabled = settings.get("ai_enabled", False)
     if st.button("AI 拆任務", disabled=not ai_enabled):
         if tasks:
-            st.session_state["confirm_ai_task_replacement"] = True
+            st.session_state["tasks_confirm_ai"] = True
         else:
             generate_tasks()
 
-    if st.session_state.get("confirm_ai_task_replacement", False):
+    if st.session_state.get("tasks_confirm_ai", False):
         @st.dialog("確認重新拆任務")
         def confirm_ai_task_replacement():
             """確認是否以 AI 結果取代未鎖定且未完成的任務。
@@ -109,10 +125,10 @@ def render_tasks_tab():
             st.write("重新拆任務會移除未鎖定且未完成的任務，繼續嗎？")
             confirm_column, cancel_column = st.columns(2)
             if confirm_column.button("確認並拆任務"):
-                st.session_state["confirm_ai_task_replacement"] = False
-                generate_tasks()
+                st.session_state["tasks_confirm_ai"] = False
+                generate_tasks(persist_messages=True)
             if cancel_column.button("取消"):
-                st.session_state["confirm_ai_task_replacement"] = False
+                st.session_state["tasks_confirm_ai"] = False
                 st.rerun()
 
         confirm_ai_task_replacement()
@@ -149,10 +165,7 @@ def render_tasks_tab():
                 max_value=20.0,
                 step=0.5,
             ),
-            "est_source": st.column_config.SelectboxColumn(
-                "來源",
-                options=["AI 估計", "手動"],
-            ),
+            "est_source": st.column_config.TextColumn("來源"),
             "preferred": st.column_config.SelectboxColumn(
                 "偏好負責人",
                 options=[""] + member_names,
@@ -163,7 +176,15 @@ def render_tasks_tab():
             "actual_hours": None,
             "depends_on": None,
         },
-        disabled=["id", "assignee", "locked", "status", "actual_hours", "depends_on"],
+        disabled=[
+            "id",
+            "est_source",
+            "assignee",
+            "locked",
+            "status",
+            "actual_hours",
+            "depends_on",
+        ],
         num_rows="dynamic",
         hide_index=True,
         key="tasks_editor_" + str(st.session_state.get("tasks_version", 0)),
@@ -189,8 +210,9 @@ def render_tasks_tab():
             continue
 
         task_id = row.get("id")
-        if task_id in original_by_id:
-            task = dict(original_by_id[task_id])
+        original_task = original_by_id.get(task_id)
+        if original_task is not None:
+            task = dict(original_task)
         else:
             task_id = next_task_id(ids_for_new_tasks)
             task = {
@@ -206,7 +228,13 @@ def render_tasks_tab():
 
         task["title"] = title.strip()
         task["est_hours"] = float(est_hours)
-        task["est_source"] = "ai" if row.get("est_source") == "AI 估計" else "manual"
+        if (
+            original_task is None
+            or task["est_hours"] != original_task.get("est_hours")
+        ):
+            task["est_source"] = "manual"
+        else:
+            task["est_source"] = original_task.get("est_source", "manual")
         task["preferred"] = member_id_by_name.get(row.get("preferred"))
         updated_tasks.append(task)
 

@@ -5,10 +5,13 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from ai.availability import build_availability_prompt, parse_availability_with_ai
+import pandas as pd
+
+from ai.availability import parse_availability_with_ai
 from ai.client import call_ai, mask_names
 from ai.tasks import build_task_prompt, split_tasks_with_ai, validate_task
 from logic.validators import validate_availability
+from ui.tasks import render_tasks_tab
 
 results = []
 
@@ -114,6 +117,278 @@ def case_8():
     )
 
 
+def case_8_task_editor():
+    """案例 8：工時變更後標記為手動，來源欄不可編輯。
+    輸入：一筆 AI 任務與修改後的任務表資料
+    輸出：工時更新、來源改為手動且來源欄唯讀
+    """
+    session_state = {
+        "project": {"description": "", "deadline": "2026-12-18"},
+        "members": [],
+        "tasks": [
+            {
+                "id": "T1",
+                "title": "整理需求",
+                "est_hours": 2.0,
+                "est_source": "ai",
+                "assignee": None,
+                "locked": False,
+                "preferred": None,
+                "status": "todo",
+                "actual_hours": None,
+                "depends_on": [],
+            }
+        ],
+        "settings": {"ai_enabled": False},
+        "tasks_version": 0,
+    }
+    streamlit_mock = MagicMock()
+    streamlit_mock.session_state = session_state
+    streamlit_mock.text_area.return_value = ""
+    streamlit_mock.text_input.return_value = ""
+    streamlit_mock.button.return_value = False
+    streamlit_mock.data_editor.return_value = pd.DataFrame(
+        [
+            {
+                "id": "T1",
+                "title": "整理需求",
+                "est_hours": 3.0,
+                "est_source": "AI 估計",
+                "preferred": "",
+                "assignee": None,
+                "locked": False,
+                "status": "todo",
+                "actual_hours": None,
+                "depends_on": [],
+            }
+        ]
+    )
+    streamlit_mock.selectbox.return_value = "T1"
+
+    def update_tasks_for_test(new_tasks):
+        """模擬共用狀態更新以檢查任務表的輸出。
+        輸入：新任務 list[dict]
+        輸出：無（更新測試用 session state）
+        """
+        session_state["tasks"] = list(new_tasks)
+
+    with patch("ui.tasks.st", streamlit_mock):
+        with patch("ui.tasks.update_tasks", side_effect=update_tasks_for_test):
+            render_tasks_tab()
+
+    updated_task = session_state["tasks"][0]
+    disabled_columns = streamlit_mock.data_editor.call_args.kwargs["disabled"]
+    check(
+        "任務表工時修改會改成手動來源且來源欄唯讀",
+        updated_task["est_hours"] == 3.0
+        and updated_task["est_source"] == "manual"
+        and "est_source" in disabled_columns,
+    )
+
+
+def case_8_ai_warning():
+    """案例 8：直接按 AI 拆任務時保留格式錯誤提示。
+    輸入：部分任務合法的 AI 回應與空任務清單
+    輸出：任務更新、提示顯示且不因拆任務而重跑
+    """
+    session_state = {
+        "project": {
+            "description": "公平分工工具",
+            "deadline": "2026-12-18",
+            "project_type": "",
+            "member_level": "",
+        },
+        "members": [],
+        "tasks": [],
+        "settings": {"ai_enabled": True},
+        "tasks_version": 0,
+    }
+    ai_tasks = [{"title": "整理需求", "est_hours": 2}]
+    merged_tasks = [
+        {
+            "id": "T1",
+            "title": "整理需求",
+            "est_hours": 2,
+            "est_source": "ai",
+            "assignee": None,
+            "locked": False,
+            "preferred": None,
+            "status": "todo",
+            "actual_hours": None,
+            "depends_on": [],
+        }
+    ]
+    streamlit_mock = MagicMock()
+    streamlit_mock.session_state = session_state
+    streamlit_mock.text_area.return_value = "公平分工工具"
+    streamlit_mock.text_input.return_value = ""
+    streamlit_mock.button.side_effect = lambda label, disabled=False: (
+        label == "AI 拆任務" and not disabled
+    )
+    streamlit_mock.data_editor.return_value = pd.DataFrame(
+        [
+            {
+                "id": "T1",
+                "title": "整理需求",
+                "est_hours": 2.0,
+                "est_source": "AI 估計",
+                "preferred": "",
+                "assignee": None,
+                "locked": False,
+                "status": "todo",
+                "actual_hours": None,
+                "depends_on": [],
+            }
+        ]
+    )
+    streamlit_mock.selectbox.return_value = "T1"
+
+    def update_tasks_for_test(new_tasks):
+        """模擬共用狀態更新以檢查 AI 任務輸出。
+        輸入：新任務 list[dict]
+        輸出：無（更新測試用 session state）
+        """
+        session_state["tasks"] = list(new_tasks)
+
+    with patch("ui.tasks.st", streamlit_mock):
+        with patch(
+            "ui.tasks.split_tasks_with_ai",
+            return_value=(ai_tasks, ["1 個任務格式錯誤已略過"]),
+        ):
+            with patch("ui.tasks.merge_ai_tasks", return_value=merged_tasks):
+                with patch(
+                    "ui.tasks.update_tasks",
+                    side_effect=update_tasks_for_test,
+                ):
+                    render_tasks_tab()
+
+    warning_was_shown = any(
+        call.args[0] == "1 個任務格式錯誤已略過"
+        for call in streamlit_mock.warning.call_args_list
+    )
+    check(
+        "案例 8 直接拆任務顯示提示且不因生成結果重跑",
+        warning_was_shown
+        and session_state["tasks"] == merged_tasks
+        and not streamlit_mock.rerun.called,
+    )
+
+
+def case_8_confirmation_warning():
+    """案例 8：確認重新拆任務後保存提示並在重跑時顯示。
+    輸入：已有任務、確認狀態與部分合法的 AI 回應
+    輸出：重跑後顯示提示並清除暫存訊息
+    """
+    session_state = {
+        "project": {
+            "description": "公平分工工具",
+            "deadline": "2026-12-18",
+            "project_type": "",
+            "member_level": "",
+        },
+        "members": [],
+        "tasks": [
+            {
+                "id": "T1",
+                "title": "原任務",
+                "est_hours": 1.0,
+                "est_source": "manual",
+                "assignee": None,
+                "locked": False,
+                "preferred": None,
+                "status": "todo",
+                "actual_hours": None,
+                "depends_on": [],
+            }
+        ],
+        "settings": {"ai_enabled": True},
+        "tasks_version": 0,
+        "tasks_confirm_ai": True,
+    }
+    ai_tasks = [{"title": "整理需求", "est_hours": 2}]
+    merged_tasks = [
+        {
+            "id": "T2",
+            "title": "整理需求",
+            "est_hours": 2,
+            "est_source": "ai",
+            "assignee": None,
+            "locked": False,
+            "preferred": None,
+            "status": "todo",
+            "actual_hours": None,
+            "depends_on": [],
+        }
+    ]
+    streamlit_mock = MagicMock()
+    streamlit_mock.session_state = session_state
+    streamlit_mock.text_area.return_value = "公平分工工具"
+    streamlit_mock.text_input.return_value = ""
+    streamlit_mock.button.return_value = False
+    streamlit_mock.data_editor.return_value = pd.DataFrame(
+        [
+            {
+                "id": "T2",
+                "title": "整理需求",
+                "est_hours": 2.0,
+                "est_source": "AI 估計",
+                "preferred": "",
+                "assignee": None,
+                "locked": False,
+                "status": "todo",
+                "actual_hours": None,
+                "depends_on": [],
+            }
+        ]
+    )
+    streamlit_mock.selectbox.return_value = "T2"
+    streamlit_mock.dialog.side_effect = lambda title: (
+        lambda function: function
+    ) if title == "確認重新拆任務" else None
+    confirm_column = MagicMock()
+    confirm_column.button.return_value = True
+    cancel_column = MagicMock()
+    cancel_column.button.return_value = False
+    streamlit_mock.columns.return_value = (confirm_column, cancel_column)
+
+    def update_tasks_for_test(new_tasks):
+        """模擬共用狀態更新以檢查重拆後的任務。
+        輸入：新任務 list[dict]
+        輸出：無（更新測試用 session state）
+        """
+        session_state["tasks"] = list(new_tasks)
+
+    with patch("ui.tasks.st", streamlit_mock):
+        with patch(
+            "ui.tasks.split_tasks_with_ai",
+            return_value=(ai_tasks, ["1 個任務格式錯誤已略過"]),
+        ):
+            with patch("ui.tasks.merge_ai_tasks", return_value=merged_tasks):
+                with patch(
+                    "ui.tasks.update_tasks",
+                    side_effect=update_tasks_for_test,
+                ):
+                    render_tasks_tab()
+
+        message_saved = session_state.get("tasks_ai_messages") == [
+            "1 個任務格式錯誤已略過"
+        ]
+        streamlit_mock.warning.reset_mock()
+        render_tasks_tab()
+
+    warning_was_shown = any(
+        call.args[0] == "1 個任務格式錯誤已略過"
+        for call in streamlit_mock.warning.call_args_list
+    )
+    check(
+        "案例 8 確認重拆後提示跨重跑顯示",
+        message_saved
+        and warning_was_shown
+        and "tasks_ai_messages" not in session_state
+        and not session_state["tasks_confirm_ai"],
+    )
+
+
 def case_10():
     """案例 10：保留期間內日期並略過期間外日期。
     輸入：預先設定的 JSON 可用時間回應
@@ -153,11 +428,14 @@ def case_10():
 
 def case_11():
     """案例 11：非 JSON 或每週工時為 null 時提示手動填寫。
-    輸入：預先設定的錯誤 AI 回應
-    輸出：None 與手動填寫提示
+    輸入：非 JSON 與缺少每週工時的合法 JSON 回應
+    輸出：錯誤 JSON 為 None；合法 JSON 保留日期並提示手動填寫
     """
     fallback_message = "請手動填寫每週可用小時"
-    responses = ["不是 JSON", '{"weekly_hours": null, "unavailable_dates": []}']
+    responses = [
+        "不是 JSON",
+        '{"weekly_hours": null, "unavailable_dates": ["2026-12-01"]}',
+    ]
     outcomes = []
     with patch("ai.availability.call_ai", side_effect=responses):
         for _ in responses:
@@ -171,8 +449,14 @@ def case_11():
             )
 
     check(
-        "案例 11 失敗回應要求手動填寫",
-        all(data is None and fallback_message in messages for data, messages in outcomes),
+        "案例 11 非 JSON 回傳 None 並提示手動填寫",
+        outcomes[0][0] is None and fallback_message in outcomes[0][1],
+    )
+    check(
+        "案例 11 每週工時為 null 時保留合法日期",
+        outcomes[1][0]
+        == {"weekly_hours": None, "unavailable_dates": ["2026-12-01"]}
+        and fallback_message in outcomes[1][1],
     )
     invalid_data, invalid_messages = validate_availability(
         {"weekly_hours": 61, "unavailable_dates": []},
@@ -255,6 +539,9 @@ def main():
     print("== D 的驗收案例 ==")
     case_5()
     case_8()
+    case_8_task_editor()
+    case_8_ai_warning()
+    case_8_confirmation_warning()
     case_10()
     case_11()
     case_16()
