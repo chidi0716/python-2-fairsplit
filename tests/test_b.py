@@ -4,7 +4,7 @@ import sys
 
 from logic.capacity import calc_capacity, count_available_days
 from logic.planner import assign_tasks, pick_member, sort_tasks
-from logic.task_ops import next_task_id, split_task
+from logic.task_ops import merge_ai_tasks, next_task_id, split_task
 
 
 results = []
@@ -176,12 +176,84 @@ def case_20_and_21():
     )
 
 
-def case_15_task_id():
-    """驗證案例 15 產生的新任務 id 從現有最大編號接續。"""
+def case_15_ai_task_merge():
+    """案例 15：保留鎖定任務，替換其他任務並補上 AI 任務欄位。"""
     existing_tasks = [
-        {"id": "T1"},
-        {"id": "T2"},
+        {
+            "id": "T1",
+            "title": "保留的任務",
+            "est_hours": 2,
+            "est_source": "manual",
+            "assignee": "m1",
+            "locked": True,
+            "preferred": "m1",
+            "status": "todo",
+            "actual_hours": None,
+            "depends_on": [],
+        },
+        {
+            "id": "T2",
+            "title": "要被取代的任務",
+            "est_hours": 4,
+            "est_source": "manual",
+            "assignee": None,
+            "locked": False,
+            "preferred": None,
+            "status": "todo",
+            "actual_hours": None,
+            "depends_on": [],
+        },
     ]
+    ai_tasks = [
+        {"title": "AI 任務甲", "est_hours": 3},
+        {"title": "AI 任務乙", "est_hours": 1.5},
+    ]
+
+    merged_tasks = merge_ai_tasks(existing_tasks, ai_tasks)
+    expected_tasks = [
+        existing_tasks[0],
+        {
+            "id": "T3",
+            "title": "AI 任務甲",
+            "est_hours": 3,
+            "est_source": "ai",
+            "assignee": None,
+            "locked": False,
+            "preferred": None,
+            "status": "todo",
+            "actual_hours": None,
+            "depends_on": [],
+        },
+        {
+            "id": "T4",
+            "title": "AI 任務乙",
+            "est_hours": 1.5,
+            "est_source": "ai",
+            "assignee": None,
+            "locked": False,
+            "preferred": None,
+            "status": "todo",
+            "actual_hours": None,
+            "depends_on": [],
+        },
+    ]
+    check("案例 15 保留鎖定任務、移除未鎖定任務並新增 T3、T4", merged_tasks == expected_tasks)
+    check("案例 15 不修改原任務資料", existing_tasks[1]["title"] == "要被取代的任務")
+
+    completed_and_replaced = [
+        {"id": "T2", "title": "已完成", "est_hours": 1, "status": "done"},
+        {"id": "T10", "title": "待替換", "est_hours": 2, "status": "todo"},
+    ]
+    merged_with_completed = merge_ai_tasks(
+        completed_and_replaced,
+        [{"title": "新 AI 任務", "est_hours": 2}],
+    )
+    check(
+        "保留已完成任務，且新 ID 依完整舊清單的最大編號接續",
+        [task["id"] for task in merged_with_completed] == ["T2", "T11"]
+        and merged_with_completed[0]["status"] == "done",
+    )
+
     check("案例 15 新任務 id 從 T3 接續", next_task_id(existing_tasks) == "T3")
     check("空任務清單的第一個 id 為 T1", next_task_id([]) == "T1")
 
@@ -275,7 +347,7 @@ def main():
     case_1_to_4()
     case_9_and_18()
     case_20_and_21()
-    case_15_task_id()
+    case_15_ai_task_merge()
     case_19_split_task()
     if not all(results):
         sys.exit(1)
