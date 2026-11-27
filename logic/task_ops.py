@@ -8,7 +8,13 @@ def next_task_id(tasks):
     輸入：tasks 任務 list[dict]
     輸出：下一個任務 id str，例如 "T3"
     """
-    return "T1"
+    highest_number = 0
+    for task in tasks:
+        task_number = int(task["id"][1:])
+        if task_number > highest_number:
+            highest_number = task_number
+
+    return "T" + str(highest_number + 1)
 
 
 def split_task(tasks, task_id):
