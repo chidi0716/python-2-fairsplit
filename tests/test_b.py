@@ -4,6 +4,7 @@ import sys
 
 from logic.capacity import calc_capacity, count_available_days
 from logic.planner import assign_tasks, pick_member, sort_tasks
+from logic.task_ops import next_task_id
 
 
 results = []
@@ -175,6 +176,23 @@ def case_20_and_21():
     )
 
 
+def case_15_task_id():
+    """驗證案例 15 產生的新任務 id 從現有最大編號接續。"""
+    existing_tasks = [
+        {"id": "T1"},
+        {"id": "T2"},
+    ]
+    check("案例 15 新任務 id 從 T3 接續", next_task_id(existing_tasks) == "T3")
+    check("空任務清單的第一個 id 為 T1", next_task_id([]) == "T1")
+
+    tasks_with_gaps = [
+        {"id": "T2"},
+        {"id": "T10"},
+        {"id": "T4"},
+    ]
+    check("任務 id 依最大數字編號接續", next_task_id(tasks_with_gaps) == "T11")
+
+
 def main():
     """執行 B 的驗收案例。
     輸入：無
@@ -185,6 +203,7 @@ def main():
     case_1_to_4()
     case_9_and_18()
     case_20_and_21()
+    case_15_task_id()
     if not all(results):
         sys.exit(1)
 
