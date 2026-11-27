@@ -1,3 +1,6 @@
+import math
+
+
 # 任務 id、拆分與合併 AI 任務（負責：B）
 # 規格：docs/spec.md 第 16 節，函式名稱、參數與回傳型別須完全一致。
 # 目前是空殼：回傳固定範例值，由負責人換成真正的程式。
@@ -22,7 +25,37 @@ def split_task(tasks, task_id):
     輸入：tasks 任務 list[dict]；task_id 任務 id str
     輸出：拆分後的新 list[dict]
     """
-    return list(tasks)
+    new_tasks = []
+    task_to_split = None
+
+    for task in tasks:
+        new_task = dict(task)
+        new_tasks.append(new_task)
+        if task["id"] == task_id:
+            task_to_split = task
+
+    if task_to_split is None or task_to_split["est_hours"] < 1:
+        return new_tasks
+
+    original_hours = task_to_split["est_hours"]
+    half_hours = original_hours / 2
+    first_task_hours = math.ceil(half_hours / 0.5) * 0.5
+
+    for task in new_tasks:
+        if task["id"] == task_id:
+            task["title"] = task_to_split["title"] + "（1）"
+            task["est_hours"] = first_task_hours
+            break
+
+    second_task = dict(task_to_split)
+    second_task["id"] = next_task_id(tasks)
+    second_task["title"] = task_to_split["title"] + "（2）"
+    second_task["est_hours"] = original_hours - first_task_hours
+    second_task["assignee"] = None
+    second_task["locked"] = False
+    new_tasks.append(second_task)
+
+    return new_tasks
 
 
 def merge_ai_tasks(existing, ai_tasks):

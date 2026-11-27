@@ -4,7 +4,7 @@ import sys
 
 from logic.capacity import calc_capacity, count_available_days
 from logic.planner import assign_tasks, pick_member, sort_tasks
-from logic.task_ops import next_task_id
+from logic.task_ops import next_task_id, split_task
 
 
 results = []
@@ -193,6 +193,78 @@ def case_15_task_id():
     check("任務 id 依最大數字編號接續", next_task_id(tasks_with_gaps) == "T11")
 
 
+def case_19_split_task():
+    """案例 19：拆分任務並確認小於 1 小時的任務不拆分。"""
+    tasks = [
+        {
+            "id": "T1",
+            "title": "寫報告",
+            "est_hours": 5,
+            "est_source": "manual",
+            "assignee": "m1",
+            "locked": True,
+            "preferred": "m1",
+            "status": "doing",
+            "actual_hours": None,
+            "depends_on": [],
+        },
+        {
+            "id": "T2",
+            "title": "校對",
+            "est_hours": 2,
+            "est_source": "manual",
+            "assignee": None,
+            "locked": False,
+            "preferred": None,
+            "status": "todo",
+            "actual_hours": None,
+            "depends_on": [],
+        },
+    ]
+
+    split_tasks = split_task(tasks, "T1")
+    first_task = split_tasks[0]
+    second_task = split_tasks[2]
+    check(
+        "案例 19 原任務改名、工時減半並保留負責人與鎖定",
+        first_task["title"] == "寫報告（1）"
+        and first_task["est_hours"] == 2.5
+        and first_task["assignee"] == "m1"
+        and first_task["locked"] is True
+        and first_task["preferred"] == "m1",
+    )
+    check(
+        "案例 19 新任務使用下一個 id、剩餘工時且未指派未鎖定",
+        second_task["id"] == "T3"
+        and second_task["title"] == "寫報告（2）"
+        and second_task["est_hours"] == 2.5
+        and second_task["assignee"] is None
+        and second_task["locked"] is False,
+    )
+    check("拆分不修改傳入的任務", tasks[0]["title"] == "寫報告" and tasks[0]["est_hours"] == 5)
+
+    short_task = {
+        "id": "T4",
+        "title": "檢查",
+        "est_hours": 0.5,
+        "assignee": None,
+        "locked": False,
+    }
+    short_tasks = [short_task]
+    result = split_task(short_tasks, "T4")
+    check("案例 19 工時 0.5 的任務不拆分", result == short_tasks and len(result) == 1)
+
+    rounding_result = split_task(
+        [{"id": "T1", "title": "準備簡報", "est_hours": 3.5}],
+        "T1",
+    )
+    check(
+        "拆分工時無法整除時向上進位到 0.5 小時",
+        rounding_result[0]["est_hours"] == 2
+        and rounding_result[1]["est_hours"] == 1.5,
+    )
+
+
 def main():
     """執行 B 的驗收案例。
     輸入：無
@@ -204,6 +276,7 @@ def main():
     case_9_and_18()
     case_20_and_21()
     case_15_task_id()
+    case_19_split_task()
     if not all(results):
         sys.exit(1)
 
