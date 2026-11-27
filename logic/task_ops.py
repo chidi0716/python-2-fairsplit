@@ -1,9 +1,7 @@
 import math
 
-
 # 任務 id、拆分與合併 AI 任務（負責：B）
 # 規格：docs/spec.md 第 16 節，函式名稱、參數與回傳型別須完全一致。
-# 目前是空殼：回傳固定範例值，由負責人換成真正的程式。
 
 
 def next_task_id(tasks):
@@ -63,4 +61,28 @@ def merge_ai_tasks(existing, ai_tasks):
     輸入：existing 現有任務 list[dict]；ai_tasks 只含 title、est_hours 的合法任務 list[dict]
     輸出：新 list[dict]：保留鎖定或已完成的任務，刪除其他現有任務，AI 任務補齊欄位
     """
-    return list(existing)
+    merged_tasks = []
+
+    for task in existing:
+        if task.get("locked", False) or task.get("status") == "done":
+            merged_tasks.append(dict(task))
+
+    next_id_number = int(next_task_id(existing)[1:])
+
+    for ai_task in ai_tasks:
+        merged_task = {
+            "id": "T" + str(next_id_number),
+            "title": ai_task["title"],
+            "est_hours": ai_task["est_hours"],
+            "est_source": "ai",
+            "assignee": None,
+            "locked": False,
+            "preferred": None,
+            "status": "todo",
+            "actual_hours": None,
+            "depends_on": [],
+        }
+        merged_tasks.append(merged_task)
+        next_id_number += 1
+
+    return merged_tasks
