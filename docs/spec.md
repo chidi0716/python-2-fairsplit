@@ -286,33 +286,32 @@ C_i     = 每週可用小時 ÷ 7 × 可用天數
 
 ### 5.5 AI 供應商
 
-兩個免費候選都用 `openai` 套件呼叫，差別只在 `.env` 的三個值，`call_ai` 從 `.env` 讀取，不寫死在程式裡。
+使用 Google AI Studio 的 Gemini API 免費額度，以 `openai` 套件呼叫；`call_ai` 從 `.env` 讀取三個值，不寫死在程式裡。
 
-| 候選 | `AI_BASE_URL` | `AI_MODEL` | `AI_API_KEY` | 注意 |
+| 服務 | `AI_BASE_URL` | `AI_MODEL` | `AI_API_KEY` | 注意 |
 |---|---|---|---|---|
-| GitHub Models | `https://models.github.ai/inference` | `openai/gpt-4o-mini` | GitHub 權杖（需 `models:read` 權限） | 每分鐘、每日請求有上限 |
-| Google AI Studio（Gemini API 免費額度） | `https://generativelanguage.googleapis.com/v1beta/openai/` | 實測當時 AI Studio 列出的 Flash 系列模型 | AI Studio 產生的 API 金鑰 | 免費額度送出的內容，Google 會用於改進其產品 |
+| Google AI Studio（Gemini API 免費額度） | `https://generativelanguage.googleapis.com/v1beta/openai/` | D 實測時使用的 Flash 系列模型 | AI Studio 產生的 API 金鑰 | 條款要求使用者年滿 18 歲；免費額度送出的內容，Google 會用於改進其產品 |
 
-- **選定方式**：11/25（第 1 週三）前由 D 實測。準備 3 段專題描述與 5 句可用時間描述，先由組員寫出正確答案，再讓兩個候選各跑一次，比較：
+- **選定方式**：原本的另一個候選 GitHub Models 已於 2026/7/30 停止服務，因此直接選定 Gemini。D 於 11/27 實測：準備 3 段專題描述與 5 句可用時間描述，先由組員寫出正確答案，再檢查：
   1. 回傳的 JSON 能通過 5.4 驗證的比例；
   2. 可用時間解析與正確答案相符的句數（用 5.3 的可用時間提示詞測試）；
   3. 拆出的任務與工時是否合理（4 人各自評分 1–5）；
   4. 回應時間，超過 15 秒視為失敗。
-  依序比較上述四項，取較好的一方；結果與分數由 D 寫入 `docs/ai-log/D.md` 並 commit。
-- **呼叫參數**：要求 JSON 格式回應（`response_format={"type": "json_object"}`），5.4 的去除程式碼區塊處理保留作備案；選用 Gemini 時把 `reasoning_effort` 設為最低。兩項都在實測時確認可用。
-- **備案**：選定的服務失效時，改 `.env` 換成另一個；兩者都不能用時，AI 按鈕預設停用，MVP 全部以手動輸入完成。
-- **開發用的 AI 程式助手**：每人自選，例如 GitHub Copilot（GitHub Education 學生方案）、Claude 或自己訂閱的其他 AI；使用紀錄一律記入自己的 `docs/ai-log/代號.md`（10.2）。作品內的 AI 一律用上表選定的服務，不使用個人訂閱。
+  結果：可用時間 5 句中 4 句符合，1 句逾時；3 段任務描述都產生合法任務，合理度平均 4.5／5。詳細數字見 `docs/ai-log/D.md`。
+- **呼叫參數**：要求 JSON 格式回應（`response_format={"type": "json_object"}`），5.4 的去除程式碼區塊處理保留作備案；`reasoning_effort` 設為最低。兩項都在實測時確認可用。
+- **備案**：Gemini 無法使用時，AI 按鈕預設停用，MVP 全部以手動輸入完成；之後若有其他支援 OpenAI 相容格式的服務，只需改 `.env`。
+- **開發用的 AI 程式助手**：每人自選，例如 GitHub Copilot（GitHub Education 學生方案）、Claude 或自己訂閱的其他 AI；使用紀錄一律記入自己的 `docs/ai-log/代號.md`（10.2）。作品內的 AI 一律用上表的服務，不使用個人訂閱。
 
 ### 5.6 資料使用告知（彈窗內容）
 
-第一次開啟時以 `st.dialog` 顯示，使用者選擇後才進入主畫面；選擇結果存在 `data/settings.json`，之後不再跳出；側欄「資料使用說明」按鈕可再次打開彈窗並重新選擇，新選擇覆寫 `settings`。
+第一次開啟時以 `st.dialog(dismissible=False)` 顯示，沒有關閉鈕，使用者選擇後才進入主畫面；選擇結果存在 `data/settings.json`，之後不再跳出；側欄「資料使用說明」按鈕可再次打開彈窗並重新選擇，新選擇覆寫 `settings`。
 
 ```text
 FairSplit 會記錄哪些資料
 ・專題描述、任務、組員名稱與可用時間，每次修改後自動存在這台電腦的 data/ 資料夾，不會上傳。
 ・使用 AI 功能時，會把專題描述、截止日、組員人數、專題類型與組員程度（有填才送）
-  與可用時間描述句送到 ＿＿＿（5.5 選定的服務）；組員姓名不會送出。
-・（選用 Gemini 免費額度時加上）Google 可能使用送出的內容改進其產品，請勿輸入個人資料。
+  與可用時間描述句送到 Google Gemini API（5.5）；組員姓名不會送出。
+・Google 可能使用送出的內容改進其產品，請勿輸入個人資料。
 ・可用時間只用於計算工時，不顯示原因，也不做個人排名。
 ・刪除 data/ 資料夾即可清除全部資料。
 
@@ -397,7 +396,7 @@ FairSplit 會記錄哪些資料
 | 週次 | 日期 | 目標 | 檢查點 |
 |---|---|---|---|
 | 0 | 11/20–11/22 | 繳交 spec.md；A 建立 GitHub repo；A 產生所有函式的空殼與 `app.py` 框架，B 放好 `data/demo/` 範例資料（15.4） | `streamlit run app.py` 能開出完整畫面 |
-| 1 | 11/23–11/29 | 每人把邏輯函式的空殼換成真正的程式；11/25 決定 AI 供應商；每人訪談 2 位 | 案例 1–4、6、7、9、16–22 通過；ai-log 每人 ≥ 1 筆 |
+| 1 | 11/23–11/29 | 每人把邏輯函式的空殼換成真正的程式；決定 AI 供應商（11/27 選定 Gemini）；每人訪談 2 位 | 案例 1–4、6、7、9、16–22 通過；ai-log 每人 ≥ 1 筆 |
 | 2 | 11/30–12/06 | 每人完成自己負責的畫面；接上兩個 AI 功能；README 初稿（15.3） | 全部案例通過；組員照 README 能跑起來 |
 | 3 | 12/07–12/13 | 找 2–3 組同學試用並把 7.2 結果寫入 `docs/trials.md`（C）；第二版重排：B 寫 `reassign_unfinished`；A 寫 `ui/reassign.py`；C 寫 `estimate_bias`；D 寫 `explain_reassign_with_ai` | 試用紀錄；ai-log 每人 ≥ 2 筆 |
 | 4 | 12/14–12/20 | 修正試用回饋；每人完成自己負責的簡報頁（16.2）；A 錄 Demo 影片；發表練習 | 每人能 1 分鐘講完自己的函式 |
@@ -484,7 +483,7 @@ FairSplit 會記錄哪些資料
 
 | 項目 | 規定 |
 |---|---|
-| 語言與框架 | Python 3.10 以上 + Streamlit 1.40 以上（需要 `st.dialog`、`st.data_editor`） |
+| 語言與框架 | Python 3.10 以上 + Streamlit 1.48 以上（需要 `st.dialog` 的 `dismissible` 參數、`st.data_editor`） |
 | 資料儲存 | JSON 檔，不用資料庫 |
 | 開發時程 | 2026-11-21 至 2026-12-20 |
 | 套件 | `streamlit`、`pandas`（搭配 `st.data_editor` 與圖表）、`python-dotenv`、`openai`（呼叫 5.5 選定的 AI 服務）；標準庫用 `json`、`datetime`、`pathlib`、`math`、`os`、`sys`、`subprocess`。新增其他套件時更新 `requirements.txt` 與本表 |
@@ -659,7 +658,7 @@ python-2-fairsplit/
 
 B 只寫 `logic/` 函式，不直接讀寫 `st.session_state`。
 
-各 `ui/` 檔案只在自己檔案內使用的暫存 key（輸入元件的 `key`、確認彈窗的開關等）不算共用 key，不必列入上表，但一律以檔名開頭，例如 `tasks_description`、`tasks_confirm_ai`、`availability_hours_m1`，不跨檔案讀寫。
+各 `ui/` 檔案只在自己檔案內使用的暫存 key（輸入元件的 `key`、確認彈窗的開關等）不算共用 key，不必列入上表，但一律以檔名開頭，例如 `tasks_description`、`tasks_confirm_ai`、`availability_hours_m1`，不跨檔案讀寫。唯一的例外是側欄「載入 Demo 資料」：`app.py` 會清掉上表以外的所有 key，讓各分頁的輸入元件改從新資料讀值（輸入元件的寫法見 15.5）。
 
 自動存檔：`app.py` 在每次執行的最後呼叫 `save_all`，把 `project`、`members`、`tasks`、`settings` 寫回 `data/`。重新整理頁面後，`init_state` 從 `data/` 讀回資料。
 
@@ -692,6 +691,7 @@ B 只寫 `logic/` 函式，不直接讀寫 `st.session_state`。
 ### 15.5 Streamlit 實作注意事項
 
 - **程式改寫輸入元件的值**：例如把 AI 解析出的每週小時填進 `number_input`。要在按鈕的 `on_click` 回呼函式裡改寫該元件 `key` 對應的 `session_state`；元件畫出後才改會出錯。
+- **輸入元件的初值**：有 `key` 的輸入元件不要同時傳 `value=`，改成畫出元件前檢查，`session_state` 沒有這個 key 時才從共用資料帶入初值。同時傳 `value=` 時，key 被清掉後瀏覽器仍會送回舊的輸入，載入 Demo 後畫面會停在舊資料。
 - **可編輯表格**：`st.data_editor` 以 `session_state` 的資料為輸入，`key` 分頁 1 寫成 `"tasks_editor_" + str(tasks_version)`、分頁 3 寫成 `"assign_editor_" + str(tasks_version)`（前綴不同，避免兩個表格 key 重複）；回傳值與原資料不同時才呼叫 `update_tasks` 寫回（由它把 `tasks_version` 加 1）。分頁 1 與分頁 3 都編輯 `tasks`，換 key 才能讓另一個表格重新讀取，否則修改會套到錯的列。
 - **表格欄位設定**：負責人與偏好負責人用 `st.column_config.SelectboxColumn`，選項為組員姓名；由 `ui/` 的檔案負責姓名與組員 id 的轉換：畫面顯示姓名，寫回 `tasks` 時存 id；狀態顯示「未開始／進行中／已完成」；來源顯示「AI 估計／手動」，此欄唯讀，工時改得和原本不同時由程式把 `est_source` 改成 `"manual"`；工時用 `NumberColumn`（0.5–20，間隔 0.5）；新增的列由程式用 `next_task_id` 補上 id 與預設欄位。
 - **日期格式**：`date_input` 與 `multiselect` 取得的日期，在 `ui/` 的檔案用 `.isoformat()` 轉成 `"YYYY-MM-DD"` 字串後才傳給邏輯函式；邏輯函式只接受字串。
@@ -760,7 +760,7 @@ B 只寫 `logic/` 函式，不直接讀寫 `st.session_state`。
 | A 林其棣 | 主程式與側欄、資料讀寫、組員新增與刪除函式、共用狀態寫入（`update_tasks`）、告知彈窗、自動存檔、分頁 2、分頁 3 上半 | 6、12、13、14 | 整合：空殼合併後確認 `streamlit run app.py` 能開；每週合併後跑 `python run_tests.py` 與 `streamlit run app.py`，失敗時通知負責人修正；全部函式空殼（15.4）、README、Demo 影片錄製、訪談 2 位 | 封面、問題與需求、解決方案（畫面） |
 | B 董謙耀 | 可用工時、排序與分配（含偏好規則）、任務 id 與拆分、合併 AI 任務 | 1–4（分配部分）、7、9、15、18、19、20、21 | `run_tests.py`、`data/demo/` 範例資料、訪談 2 位 | 解決方案（流程、貪心法） |
 | C 鄭勤翰 | 公平指標、負載率算式與完成率、分頁 3 下半 | 1–4（指標部分）、17、22 | 訪談彙整（寫入 `docs/interviews.md`）、試用與 7.2 判準紀錄（寫入 `docs/trials.md`）、訪談 2 位 | 與現有做法比較、影響力 |
-| D 黃政捷 | AI 呼叫、AI 拆任務、AI 解析與驗證可用時間、分頁 1 | 5、8、10、11、16 | AI 供應商實測（11/25，結果寫入 `docs/ai-log/D.md`）；A 的備援：A 兩天內未回應時，代行整合與介面判斷，事後告知 A；訪談 2 位 | AI 應用與人機協作 |
+| D 黃政捷 | AI 呼叫、AI 拆任務、AI 解析與驗證可用時間、分頁 1 | 5、8、10、11、16 | AI 供應商實測（11/27 完成，結果寫入 `docs/ai-log/D.md`）；A 的備援：A 兩天內未回應時，代行整合與介面判斷，事後告知 A；訪談 2 位 | AI 應用與人機協作 |
 
 ---
 

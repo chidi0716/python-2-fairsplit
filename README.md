@@ -15,7 +15,7 @@ AI 只負責拆任務與解析可用時間；分配與所有指標都由 Python 
 ## 環境需求
 
 - Python 3.10 以上
-- Streamlit 1.40 以上（由 `requirements.txt` 安裝）
+- Streamlit 1.48 以上（由 `requirements.txt` 安裝）
 
 ## 安裝
 
@@ -38,17 +38,16 @@ pip install -r requirements.txt
 
 ## AI 設定（選用）
 
-> AI 供應商在 11/25 由 D 實測後決定，決定後更新本節。
-
 不設定也能使用：AI 按鈕會失效，改用手動輸入完成全部流程。
 
 1. 複製範本：Windows 用 `copy .env.example .env`，macOS／Linux 用 `cp .env.example .env`。
-2. 依選定的服務填入 `.env` 的三個值：
+2. 填入 `.env` 的三個值（使用 Google Gemini API 免費額度，D 於 11/27 實測選定）：
 
 | 服務 | `AI_BASE_URL` | `AI_MODEL` | `AI_API_KEY` 取得方式 |
 |---|---|---|---|
-| GitHub Models | `https://models.github.ai/inference` | `openai/gpt-4o-mini` | GitHub → Settings → Developer settings → Personal access tokens，建立權杖並開啟 `models:read` 權限 |
-| Google AI Studio | `https://generativelanguage.googleapis.com/v1beta/openai/` | 待實測後填入 | 在 Google AI Studio 建立 API 金鑰 |
+| Google AI Studio | `https://generativelanguage.googleapis.com/v1beta/openai/` | 待補（D 實測時使用的模型名稱） | 在 Google AI Studio 建立 API 金鑰 |
+
+Gemini API 的條款要求使用者年滿 18 歲；免費額度送出的內容，Google 可能用於改進其產品，請勿輸入個人資料。
 
 `.env` 已列入 `.gitignore`，**不要 commit，也不要貼給別人**。
 
