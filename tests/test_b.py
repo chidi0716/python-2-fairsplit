@@ -3,7 +3,13 @@
 import sys
 
 from logic.capacity import calc_capacity, count_available_days
-from logic.planner import assign_tasks, pick_member, sort_tasks
+from logic.planner import (
+    assign_tasks,
+    pick_member,
+    reassign_unfinished,
+    sort_tasks,
+    topo_order,
+)
 from logic.task_ops import merge_ai_tasks, next_task_id, split_task
 
 
@@ -337,6 +343,95 @@ def case_19_split_task():
     )
 
 
+def case_22_topo_order():
+    """第二版：排序依賴任務並回報無效或循環相依。"""
+    tasks = [
+        {"id": "T3", "depends_on": ["T1"]},
+        {"id": "T2", "depends_on": []},
+        {"id": "T1", "depends_on": []},
+    ]
+    ordered_tasks, error = topo_order(tasks)
+    check(
+        "拓撲排序先完成相依任務，並穩定保留可執行任務順序",
+        [task["id"] for task in ordered_tasks] == ["T2", "T1", "T3"]
+        and error is None,
+    )
+
+    cyclic_tasks = [
+        {"id": "T1", "depends_on": ["T2"]},
+        {"id": "T2", "depends_on": ["T1"]},
+        {"id": "T3", "depends_on": ["T2"]},
+    ]
+    ordered_tasks, error = topo_order(cyclic_tasks)
+    check(
+        "拓撲排序回報循環中的任務",
+        ordered_tasks == []
+        and error is not None
+        and "T1" in error
+        and "T2" in error
+        and "T3" not in error,
+    )
+
+    ordered_tasks, error = topo_order(
+        [{"id": "T1", "depends_on": ["T9"]}],
+    )
+    check(
+        "拓撲排序回報不存在的相依任務",
+        ordered_tasks == [] and error is not None and "T9" in error,
+    )
+
+
+def case_reassign_unfinished():
+    """第二版：只建議重排未完成且未鎖定任務。"""
+    members = [
+        {
+            "id": "m1",
+            "weekly_hours": 7,
+            "unavailable_dates": ["2026-11-25"],
+        },
+        {"id": "m2", "weekly_hours": 14, "unavailable_dates": []},
+    ]
+    tasks = [
+        {"id": "T1", "est_hours": 4, "status": "todo"},
+        {"id": "T2", "est_hours": 2, "status": "doing"},
+        {
+            "id": "T3",
+            "est_hours": 10,
+            "status": "todo",
+            "locked": True,
+            "assignee": "m2",
+        },
+        {"id": "T4", "est_hours": 20, "status": "done", "assignee": "m1"},
+    ]
+    check(
+        "重排建議以鎖定任務計入負載，排除已完成與鎖定任務",
+        reassign_unfinished(tasks, members, "2026-11-23")
+        == {"T1": "m1", "T2": "m2"},
+    )
+
+    unavailable_changes_capacity = [
+        {"id": "m1", "weekly_hours": 7, "unavailable_dates": ["2026-11-25"]},
+        {"id": "m2", "weekly_hours": 7, "unavailable_dates": []},
+    ]
+    check(
+        "重排容量依今天起算未來 7 天的不可用日期調整",
+        reassign_unfinished(
+            [{"id": "T1", "est_hours": 1, "status": "todo"}],
+            unavailable_changes_capacity,
+            "2026-11-23",
+        ) == {"T1": "m2"},
+    )
+
+    check(
+        "沒有正數剩餘可用工時時不提供重排建議",
+        reassign_unfinished(
+            [{"id": "T1", "est_hours": 1, "status": "todo"}],
+            [{"id": "m1", "weekly_hours": 0, "unavailable_dates": []}],
+            "2026-11-23",
+        ) == {},
+    )
+
+
 def main():
     """執行 B 的驗收案例。
     輸入：無
@@ -349,6 +444,8 @@ def main():
     case_20_and_21()
     case_15_ai_task_merge()
     case_19_split_task()
+    case_22_topo_order()
+    case_reassign_unfinished()
     if not all(results):
         sys.exit(1)
 

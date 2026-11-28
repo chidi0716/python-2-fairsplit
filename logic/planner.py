@@ -1,3 +1,8 @@
+from datetime import date, timedelta
+from heapq import heappop, heappush
+
+from logic.capacity import calc_capacity
+
 # 排序與分配（負責：B）
 # 規格：docs/spec.md 第 16 節，函式名稱、參數與回傳型別須完全一致。
 PREFERENCE_TOLERANCE = 0.1
@@ -103,12 +108,114 @@ def topo_order(tasks):
     輸入：含 depends_on 的任務 list[dict]
     輸出：(順序 list, 錯誤訊息 str 或 None)
     """
-    return [], None
+    task_by_id = {}
+    task_order = {}
+    dependencies = {}
+
+    for index, task in enumerate(tasks):
+        task_id = task["id"]
+        if task_id in task_by_id:
+            return [], f"任務 id 重複：{task_id}"
+        task_by_id[task_id] = task
+        task_order[task_id] = index
+
+    for task in tasks:
+        task_id = task["id"]
+        task_dependencies = list(dict.fromkeys(task.get("depends_on", [])))
+        unknown_dependencies = [
+            dependency
+            for dependency in task_dependencies
+            if dependency not in task_by_id
+        ]
+        if unknown_dependencies:
+            missing_ids = "、".join(unknown_dependencies)
+            return [], f"{task_id} 的相依任務不存在：{missing_ids}"
+        dependencies[task_id] = task_dependencies
+
+    dependent_tasks = {task_id: [] for task_id in task_by_id}
+    remaining_dependencies = {}
+    for task_id, task_dependencies in dependencies.items():
+        remaining_dependencies[task_id] = len(task_dependencies)
+        for dependency in task_dependencies:
+            dependent_tasks[dependency].append(task_id)
+
+    ready_tasks = []
+    for task_id, dependency_count in remaining_dependencies.items():
+        if dependency_count == 0:
+            heappush(ready_tasks, (task_order[task_id], task_id))
+
+    ordered_tasks = []
+    while ready_tasks:
+        _, task_id = heappop(ready_tasks)
+        ordered_tasks.append(task_by_id[task_id])
+
+        for dependent_id in dependent_tasks[task_id]:
+            remaining_dependencies[dependent_id] -= 1
+            if remaining_dependencies[dependent_id] == 0:
+                heappush(
+                    ready_tasks,
+                    (task_order[dependent_id], dependent_id),
+                )
+
+    if len(ordered_tasks) == len(tasks):
+        return ordered_tasks, None
+
+    remaining_task_ids = {
+        task_id
+        for task_id, dependency_count in remaining_dependencies.items()
+        if dependency_count > 0
+    }
+    visit_state = {}
+    path = []
+
+    def find_cycle(task_id):
+        visit_state[task_id] = 1
+        path.append(task_id)
+
+        for dependency in dependencies[task_id]:
+            if dependency not in remaining_task_ids:
+                continue
+            dependency_state = visit_state.get(dependency, 0)
+            if dependency_state == 1:
+                cycle_start = path.index(dependency)
+                return path[cycle_start:] + [dependency]
+            if dependency_state == 0:
+                cycle = find_cycle(dependency)
+                if cycle is not None:
+                    return cycle
+
+        path.pop()
+        visit_state[task_id] = 2
+        return None
+
+    for task_id in task_by_id:
+        if task_id in remaining_task_ids and visit_state.get(task_id, 0) == 0:
+            cycle = find_cycle(task_id)
+            if cycle is not None:
+                cycle_path = " → ".join(cycle)
+                return [], f"循環依賴：{cycle_path}"
+
+    return [], "偵測到循環依賴"
 
 
 def reassign_unfinished(tasks, members, today):
-    """以今天為起點重排未完成任務（第二版）。
+    """以今天起算未來 7 天的可用工時，重排未完成且未鎖定任務。
     輸入：tasks 任務 list[dict]；members 組員 list[dict]；today 日期 str
     輸出：新分配建議 dict（任務 id → 組員 id）
     """
-    return {}
+    start_date = date.fromisoformat(today)
+    deadline = (start_date + timedelta(days=6)).isoformat()
+    capacities = {
+        member["id"]: calc_capacity(member, today, deadline)
+        for member in members
+    }
+    unfinished_tasks = [
+        task for task in tasks if task.get("status") != "done"
+    ]
+    assignments = assign_tasks(unfinished_tasks, capacities)
+
+    return {
+        task["id"]: assignments[task["id"]]
+        for task in unfinished_tasks
+        if not task.get("locked", False) and task["id"] in assignments
+    }
